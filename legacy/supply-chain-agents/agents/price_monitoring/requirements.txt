@@ -1,0 +1,6 @@
+agent-framework==1.0.0b251223
+agent-framework-azure-ai==1.0.0b251223
+azure-identity>=1.15.0
+
+aiohttp>=3.9.0
+python-dotenv>=1.0.0

@@ -1,14 +1,31 @@
+import json
+import logging
+
 from fastapi import FastAPI, Query, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
-# Database imports
-from src.database.config import get_db, test_connection
-from src.database.models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
-from src.services.inventory_service import InventoryService
-from src.services.supplier_service import SupplierService
-from src.services.order_service import OrderService
+# Database imports (now at root level)
+from database.config import get_db, test_connection
+from database.models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
+from services.inventory_service import InventoryService
+from services.supplier_service import SupplierService
+from services.order_service import OrderService
+
+# Agent imports
+from agents.orchestrator.magentic_workflow import magentic_orchestrator
+from agents.orchestrator.tools.tool_registry import tool_registry
+
+logger = logging.getLogger(__name__)
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat endpoint."""
+    message: str
+    context: dict = {}
 
 
 @asynccontextmanager
@@ -17,7 +34,21 @@ async def lifespan(app: FastAPI):
     if not test_connection():
         raise RuntimeError("Failed to connect to database")
     print("✅ Database connection established")
+    
+    # Initialize agent workflow
+    print("Initializing Supply Chain Agents...")
+    try:
+        await magentic_orchestrator.initialize()
+        print("✅ Agent workflow ready")
+    except Exception as e:
+        logger.error(f"Failed to initialize agents: {e}")
+        print(f"⚠️ Agent workflow failed to initialize: {e}")
+    
     yield
+    
+    # Cleanup
+    await tool_registry.close_all()
+    print("✅ Cleanup complete")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -413,3 +444,109 @@ def compare_prices(asin: str, db: Session = Depends(get_db)):
             )
 
     return comparison
+
+
+# ========== AGENT ENDPOINTS ==========
+
+
+@app.get("/api/health")
+async def agent_health():
+    """Health check including agent and MCP status.
+    
+    Returns:
+        Health status including agent availability and MCP servers
+    """
+    mcp_status = {
+        "total_servers": len(tool_registry._server_metadata),
+        "configured_servers": list(tool_registry._server_metadata.keys()),
+    }
+    
+    return {
+        "status": "OK",
+        "service": "supply-chain-agents",
+        "version": "1.0.0",
+        "agents": [
+            "OrchestratorAgent",
+            "PriceMonitoringAgent", 
+            "DemandForecastingAgent",
+            "AutomatedOrderingAgent",
+        ],
+        "mcp": mcp_status,
+    }
+
+
+@app.get("/api/tools")
+async def list_tools():
+    """List all available MCP tools.
+    
+    Returns:
+        Dictionary with tools array including reachability status
+    """
+    try:
+        tools_info = await tool_registry.list_tools()
+        return tools_info
+    except Exception as e:
+        logger.error(f"Error listing tools: {e}")
+        return {"tools": [], "error": str(e)}
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest) -> StreamingResponse:
+    """Process a chat request through the Supply Chain agents with SSE streaming.
+    
+    Args:
+        request: Chat request with message and optional context
+        
+    Returns:
+        StreamingResponse with Server-Sent Events
+    """
+    async def event_generator():
+        """Generate Server-Sent Events for the chat response."""
+        try:
+            logger.info(f"Processing chat request: {request.message[:100]}...")
+            
+            # Send START event
+            start_event = {
+                "type": "metadata",
+                "event": "WorkflowStarted",
+                "kind": "supply-chain-agents",
+                "data": {"agent": "Orchestrator", "message": "Starting workflow"},
+            }
+            yield f"data: {json.dumps(start_event)}\n\n"
+            
+            # Process through workflow with streaming
+            async for event in magentic_orchestrator.process_request_stream(
+                user_message=request.message,
+                conversation_history=request.context,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+            
+            # Send END event
+            end_event = {
+                "type": "metadata",
+                "kind": "supply-chain-agents",
+                "event": "Complete",
+                "data": {"message": "Request processed successfully"},
+            }
+            yield f"data: {json.dumps(end_event)}\n\n"
+            logger.info("Request processed successfully")
+            
+        except Exception as e:
+            logger.error(f"Error processing chat: {e}", exc_info=True)
+            error_event = {
+                "type": "error",
+                "kind": "supply-chain-agents",
+                "event": "Error",
+                "error": {"message": str(e), "statusCode": 500},
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

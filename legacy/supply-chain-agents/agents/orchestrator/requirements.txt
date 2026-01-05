@@ -1,0 +1,13 @@
+# Microsoft Agent Framework
+agent-framework
+agent-framework-azure-ai
+
+# Azure SDK
+azure-identity
+azure-ai-openai
+
+# Async HTTP client
+aiohttp  
+
+# Environment variables
+python-dotenv
