@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pandas
+requests
+psycopg2-binary
+sqlalchemy==2.0.23
+python-dotenv==1.0.0
+thefuzz==0.22.1
