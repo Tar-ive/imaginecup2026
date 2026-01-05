@@ -738,18 +738,391 @@ curl -X POST "http://localhost:8000/api/workflows/approve/wf-123?decision=approv
 
 ### Phase 4: Deployment
 
+See detailed Azure deployment instructions below.
+
+---
+
+## Azure Deployment with azd
+
+### Prerequisites
+
+- [Azure Developer CLI (azd)](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
+- Azure subscription with Owner or Contributor permissions
+- Docker installed (for container builds)
+
+### Infrastructure Components
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    AZURE INFRASTRUCTURE                              │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                 AZURE CONTAINER APPS                         │    │
+│  │  ┌──────────────────┐  ┌──────────────────┐                 │    │
+│  │  │  supply-chain-   │  │  mcp-ordering-   │                 │    │
+│  │  │  agents-api      │  │  server          │                 │    │
+│  │  │  (FastAPI)       │  │  (MCP Tools)     │                 │    │
+│  │  └────────┬─────────┘  └────────┬─────────┘                 │    │
+│  │           │                     │                            │    │
+│  │  ┌────────┴─────────────────────┴────────┐                  │    │
+│  │  │           Container Apps Env          │                  │    │
+│  │  │  • Managed Identity                   │                  │    │
+│  │  │  • Ingress / HTTPS                    │                  │    │
+│  │  │  • Scaling (0-10 replicas)            │                  │    │
+│  │  └───────────────────────────────────────┘                  │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
+│  │  Azure OpenAI   │  │  PostgreSQL     │  │  Application    │     │
+│  │  (GPT-4o-mini)  │  │  Flexible/Neon  │  │  Insights       │     │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Step 1: Create azure.yaml
+
+```yaml
+# azure.yaml
+name: supply-chain-agents
+metadata:
+  template: supply-chain-agents@0.0.1
+
+services:
+  api:
+    project: .
+    language: python
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+
+hooks:
+  postprovision:
+    shell: sh
+    run: |
+      echo "Deployment complete!"
+      echo "API URL: $SERVICE_API_ENDPOINT"
+```
+
+### Step 2: Create Bicep Infrastructure
+
+```bicep
+// infra/main.bicep
+targetScope = 'subscription'
+
+@minLength(1)
+@maxLength(64)
+@description('Name of the environment')
+param environmentName string
+
+@minLength(1)
+@description('Primary location for all resources')
+param location string
+
+@description('Azure OpenAI endpoint')
+param azureOpenAiEndpoint string
+
+@secure()
+@description('Azure OpenAI API key')
+param azureOpenAiApiKey string
+
+@description('Database connection string')
+@secure()
+param databaseUrl string
+
+// Resource group
+resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+  name: 'rg-${environmentName}'
+  location: location
+}
+
+// Container Apps Environment
+module containerAppsEnv 'modules/container-apps-env.bicep' = {
+  name: 'container-apps-env'
+  scope: rg
+  params: {
+    name: 'cae-${environmentName}'
+    location: location
+  }
+}
+
+// Supply Chain API
+module api 'modules/container-app.bicep' = {
+  name: 'supply-chain-api'
+  scope: rg
+  params: {
+    name: 'supply-chain-api'
+    location: location
+    containerAppsEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: 'supply-chain-agents:latest'
+    targetPort: 8000
+    env: [
+      { name: 'AZURE_OPENAI_ENDPOINT', value: azureOpenAiEndpoint }
+      { name: 'AZURE_OPENAI_API_KEY', secretRef: 'openai-key' }
+      { name: 'DATABASE_URL', secretRef: 'database-url' }
+    ]
+    secrets: [
+      { name: 'openai-key', value: azureOpenAiApiKey }
+      { name: 'database-url', value: databaseUrl }
+    ]
+  }
+}
+
+// MCP Ordering Server
+module mcpOrdering 'modules/container-app.bicep' = {
+  name: 'mcp-ordering-server'
+  scope: rg
+  params: {
+    name: 'mcp-ordering'
+    location: location
+    containerAppsEnvironmentId: containerAppsEnv.outputs.id
+    containerImage: 'mcp-ordering-server:latest'
+    targetPort: 3000
+    env: [
+      { name: 'DATABASE_URL', secretRef: 'database-url' }
+    ]
+    secrets: [
+      { name: 'database-url', value: databaseUrl }
+    ]
+  }
+}
+
+// Application Insights
+module appInsights 'modules/app-insights.bicep' = {
+  name: 'app-insights'
+  scope: rg
+  params: {
+    name: 'appi-${environmentName}'
+    location: location
+  }
+}
+
+output SERVICE_API_ENDPOINT string = api.outputs.fqdn
+output SERVICE_MCP_ENDPOINT string = mcpOrdering.outputs.fqdn
+```
+
+### Step 3: Deploy
+
 ```bash
-# Initialize azd
+# Initialize azd project
 azd init
 
-# Provision infrastructure
-azd provision
+# Login to Azure
+azd auth login
 
-# Deploy
+# Set environment variables
+azd env set AZURE_OPENAI_ENDPOINT "https://your-resource.openai.azure.com"
+azd env set AZURE_OPENAI_API_KEY "your-api-key"
+azd env set DATABASE_URL "postgresql://..."
+
+# Deploy everything
 azd up
 
-# Monitor
-azd monitor
+# Get deployed URLs
+azd env get-values
+```
+
+---
+
+## MCP Server Setup for Ordering Agent
+
+### Overview
+
+MCP (Model Context Protocol) servers provide tools that agents can call. For the Ordering Agent, we need tools to:
+
+1. **Create purchase orders**
+2. **Get supplier catalogs**
+3. **Submit orders via EDI/API**
+4. **Track order status**
+
+### MCP Server Implementation
+
+Create a dedicated MCP server for ordering operations:
+
+```typescript
+// mcp-servers/ordering/src/server.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new McpServer({
+  name: "ordering-server",
+  version: "1.0.0",
+});
+
+// Tool: Create Purchase Order
+server.tool(
+  "create_purchase_order",
+  "Create a new purchase order for a supplier",
+  {
+    supplier_id: { type: "string", description: "Supplier ID" },
+    items: {
+      type: "array",
+      description: "Array of items to order",
+      items: {
+        type: "object",
+        properties: {
+          asin: { type: "string" },
+          quantity: { type: "number" },
+          unit_price: { type: "number" },
+        },
+      },
+    },
+    expected_delivery_date: { type: "string", description: "ISO date" },
+  },
+  async ({ supplier_id, items, expected_delivery_date }) => {
+    // Call order service
+    const order = await orderService.createOrder({
+      supplierId: supplier_id,
+      items,
+      expectedDeliveryDate: new Date(expected_delivery_date),
+    });
+    
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            po_number: order.poNumber,
+            status: "created",
+            total: order.totalCost,
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// Tool: Get Supplier Catalog
+server.tool(
+  "get_supplier_catalog",
+  "Get product catalog from a supplier",
+  {
+    supplier_id: { type: "string", description: "Supplier ID" },
+  },
+  async ({ supplier_id }) => {
+    const products = await supplierService.getCatalog(supplier_id);
+    return {
+      content: [{ type: "text", text: JSON.stringify(products) }],
+    };
+  }
+);
+
+// Tool: Submit Order
+server.tool(
+  "submit_order",
+  "Submit an approved order to the supplier",
+  {
+    po_number: { type: "string", description: "Purchase order number" },
+  },
+  async ({ po_number }) => {
+    const result = await orderService.submitToSupplier(po_number);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            status: result.status,
+            confirmation: result.supplierConfirmation,
+          }),
+        },
+      ],
+    };
+  }
+);
+
+// Tool: Get Order Status
+server.tool(
+  "get_order_status",
+  "Check the status of a purchase order",
+  {
+    po_number: { type: "string", description: "Purchase order number" },
+  },
+  async ({ po_number }) => {
+    const order = await orderService.getOrderDetails(po_number);
+    return {
+      content: [{ type: "text", text: JSON.stringify(order) }],
+    };
+  }
+);
+
+// Start server
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+### Dockerfile for MCP Server
+
+```dockerfile
+# mcp-servers/ordering/Dockerfile
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.js"]
+```
+
+### Deploy MCP Server to Azure Container Apps
+
+```bash
+# Build and push MCP server
+docker build -t mcp-ordering-server ./mcp-servers/ordering
+az acr login --name <your-registry>
+docker tag mcp-ordering-server <your-registry>.azurecr.io/mcp-ordering-server
+docker push <your-registry>.azurecr.io/mcp-ordering-server
+
+# Deploy via azd (included in main.bicep)
+azd up
+```
+
+### Configure Agent to Use MCP Tools
+
+Update the tool configuration:
+
+```python
+# agents/orchestrator/tools/tool_config.py
+def get_mcp_tools_config():
+    return {
+        "ordering": {
+            "config": {
+                "url": f"{settings.mcp_ordering_url}/mcp",
+                "type": "http",
+                "verbose": True,
+            },
+            "id": "ordering",
+            "name": "Ordering Tools",
+        },
+        # ... other MCP servers
+    }
+```
+
+### Using MCP Tools in Ordering Agent
+
+```python
+# agents/automated_ordering/agent.py
+ORDERING_AGENT_INSTRUCTIONS = """You are an automated ordering agent.
+
+AVAILABLE MCP TOOLS:
+
+ORDERING_MCP:
+- create_purchase_order(supplier_id, items, expected_delivery_date)
+- get_supplier_catalog(supplier_id)
+- submit_order(po_number)
+- get_order_status(po_number)
+
+WORKFLOW:
+1. Receive order recommendations from workflow
+2. Create purchase orders using create_purchase_order
+3. Wait for human approval (if required)
+4. Submit approved orders using submit_order
+5. Monitor status using get_order_status
+"""
 ```
 
 ---
@@ -758,11 +1131,37 @@ azd monitor
 
 | File | Purpose |
 |------|---------|
-| `agents/forecasting/__init__.py` | Forecasting package |
-| `agents/forecasting/prophet_model.py` | Prophet implementation |
-| `agents/workflows/__init__.py` | Workflows package |
-| `agents/workflows/inventory_optimization.py` | Main workflow |
-| `agents/workflows/checkpoint_storage.py` | Checkpoint persistence |
-| `agents/observability/telemetry.py` | OpenTelemetry setup |
-| `infra/main.bicep` | Azure infrastructure |
 | `azure.yaml` | azd configuration |
+| `infra/main.bicep` | Azure infrastructure |
+| `infra/modules/*.bicep` | Bicep modules |
+| `mcp-servers/ordering/` | MCP ordering server |
+| `agents/demand_forecasting/model_service.py` | ✅ Created - Model loading |
+| `services/workflow_service.py` | ✅ Created - Optimization workflow |
+| `static/index.html` | ✅ Created - Dashboard UI |
+| `scripts/setup.sh` | ✅ Created - Setup script |
+
+---
+
+## Current Implementation Status
+
+### ✅ Completed
+
+- [x] Demand Forecasting Model (XGBoost + Statistical)
+- [x] Model Service with Confidence Intervals
+- [x] Workflow Service (Forecast + Price + Orders)
+- [x] Live Dashboard with SSE Streaming
+- [x] Setup Script for Easy Installation
+- [x] Comprehensive README
+
+### 🔄 In Progress
+
+- [ ] MCP Ordering Server Implementation
+- [ ] Azure Infrastructure (Bicep)
+- [ ] Human-in-the-Loop Approval System
+
+### 📋 Planned
+
+- [ ] Cosmos DB Checkpoint Storage
+- [ ] OpenTelemetry Integration
+- [ ] Scheduled Workflow Triggers
+

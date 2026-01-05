@@ -2,11 +2,14 @@ import json
 import logging
 
 from fastapi import FastAPI, Query, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from pathlib import Path
 
 # Database imports (now at root level)
 from database.config import get_db, test_connection
@@ -52,6 +55,31 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# CORS middleware for dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static files for dashboard
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# Dashboard route
+@app.get("/", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """Serve the workflow dashboard."""
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return HTMLResponse("<h1>Dashboard not found</h1><p>Run from project root.</p>")
 
 
 # ========== INVENTORY ENDPOINTS ==========
@@ -444,6 +472,174 @@ def compare_prices(asin: str, db: Session = Depends(get_db)):
             )
 
     return comparison
+
+
+# ========== WORKFLOW ENDPOINTS ==========
+
+
+@app.post("/api/workflows/optimize-inventory")
+async def workflow_optimize_inventory(
+    db: Session = Depends(get_db),
+    forecast_days: int = Query(7, description="Days ahead to forecast"),
+    include_all_products: bool = Query(False, description="Analyze all products (not just low-stock)"),
+    auto_create_orders: bool = Query(False, description="Actually create purchase orders"),
+):
+    """
+    Run the complete supply chain optimization workflow.
+    
+    This workflow:
+    1. Analyzes inventory levels using the trained forecasting model
+    2. Checks realtime prices from Amazon API
+    3. Generates order recommendations grouped by supplier
+    
+    Returns:
+        WorkflowResult with analysis and order recommendations
+    """
+    from services.workflow_service import WorkflowService
+    
+    workflow = WorkflowService(db)
+    result = await workflow.run_optimization_workflow(
+        forecast_days=forecast_days,
+        include_all_products=include_all_products,
+        auto_create_orders=auto_create_orders,
+    )
+    
+    return result.to_dict()
+
+
+@app.get("/api/workflows/optimize-inventory/stream")
+async def workflow_optimize_inventory_stream(
+    db: Session = Depends(get_db),
+    forecast_days: int = Query(7, description="Days ahead to forecast"),
+    include_all_products: bool = Query(False, description="Analyze all products (not just low-stock)"),
+    auto_create_orders: bool = Query(False, description="Actually create purchase orders"),
+) -> StreamingResponse:
+    """
+    Streaming version of the optimization workflow with real-time telemetry.
+    
+    Sends Server-Sent Events (SSE) for dashboard real-time updates.
+    """
+    from services.workflow_service import WorkflowService
+    from services.inventory_service import InventoryService
+    from agents.demand_forecasting import DemandForecasterService
+    import asyncio
+    
+    async def event_generator():
+        try:
+            # Start event
+            yield f"data: {json.dumps({'event': 'start', 'message': 'Workflow started'})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # Initialize services
+            inventory_service = InventoryService(db)
+            forecaster = DemandForecasterService.get_instance()
+            
+            yield f"data: {json.dumps({'event': 'init', 'message': 'Services initialized', 'model_loaded': forecaster.is_loaded})}\n\n"
+            
+            # Load products
+            if include_all_products:
+                products = inventory_service.get_products(limit=500)
+            else:
+                products = inventory_service.get_low_stock_products()
+            
+            yield f"data: {json.dumps({'event': 'products_loaded', 'count': len(products)})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # Analyze each product with progress
+            analyzed = []
+            for i, product in enumerate(products):
+                progress = int(20 + (60 * (i + 1) / len(products)))
+                
+                # Get forecast
+                forecast = forecaster.forecast(product.asin, forecast_days)
+                
+                # Send progress event every 5 products
+                if i % 5 == 0 or i == len(products) - 1:
+                    yield f"data: {json.dumps({'event': 'analyzing', 'product': product.asin, 'index': i + 1, 'total': len(products), 'progress': progress})}\n\n"
+                
+                analyzed.append({
+                    'asin': product.asin,
+                    'title': product.title[:50] if product.title else '',
+                    'forecast': forecast.to_dict() if hasattr(forecast, 'to_dict') else {},
+                })
+            
+            yield f"data: {json.dumps({'event': 'forecasting_complete', 'count': len(analyzed)})}\n\n"
+            
+            # Run full workflow for results
+            yield f"data: {json.dumps({'event': 'generating_orders', 'message': 'Generating order recommendations...'})}\n\n"
+            
+            workflow = WorkflowService(db)
+            result = await workflow.run_optimization_workflow(
+                forecast_days=forecast_days,
+                include_all_products=include_all_products,
+                auto_create_orders=auto_create_orders,
+            )
+            
+            # Complete event
+            yield f"data: {json.dumps({'event': 'complete', 'result': result.to_dict()})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Streaming workflow error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/api/workflows/analyze-product/{asin}")
+def workflow_analyze_product(
+    asin: str,
+    forecast_days: int = Query(7, description="Days ahead to forecast"),
+    db: Session = Depends(get_db),
+):
+    """
+    Analyze a single product with forecasting and pricing.
+    
+    Returns demand forecast, current stock, Amazon price, and reorder recommendation.
+    """
+    from services.workflow_service import WorkflowService
+    
+    workflow = WorkflowService(db)
+    result = workflow.analyze_single_product(asin, forecast_days)
+    
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    
+    return result
+
+
+@app.get("/api/forecast/{asin}")
+def get_demand_forecast(
+    asin: str,
+    days: int = Query(7, description="Days ahead to forecast"),
+):
+    """
+    Get demand forecast for a product from the trained ML model.
+    
+    Returns predicted demand with confidence intervals.
+    """
+    from agents.demand_forecasting import DemandForecasterService
+    
+    forecaster = DemandForecasterService.get_instance()
+    forecast = forecaster.forecast(asin, days)
+    
+    return forecast.to_dict()
+
+
+@app.get("/api/forecast/model/info")
+def get_forecast_model_info():
+    """Get information about the loaded forecasting model."""
+    from agents.demand_forecasting import DemandForecasterService
+    
+    forecaster = DemandForecasterService.get_instance()
+    return forecaster.get_model_info()
 
 
 # ========== AGENT ENDPOINTS ==========
