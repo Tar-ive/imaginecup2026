@@ -2,7 +2,8 @@
 
 An AI-powered **supply chain optimization system** with demand forecasting, realtime price monitoring, and automated order recommendations. Built with [Microsoft Agent Framework](https://github.com/microsoft/agent-framework), FastAPI, and XGBoost ML models.
 
-![Dashboard](docs/assets/dashboard-preview.png)
+
+- [ ] Need to frame the problem we are solving better. 
 
 ## ✨ Features
 
@@ -21,7 +22,6 @@ An AI-powered **supply chain optimization system** with demand forecasting, real
 
 ```bash
 # Clone and setup
-git clone <repo-url>
 cd realtime_price_agent
 
 # Run the setup script (creates venv, installs deps, checks env)
@@ -65,13 +65,13 @@ Create a `.env` file with:
 # Required: Azure OpenAI
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 AZURE_OPENAI_API_KEY=your-api-key
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini
 AZURE_OPENAI_API_VERSION=2024-12-01-preview
 
 # Required: Database
 DATABASE_URL=postgresql://user:password@host:5432/dbname
 
-# Optional: MCP Server URLs (for agent tools)
+# Optional: MCP Server URLs (for agent tools) -> Not Set up yet. 
 MCP_SUPPLIER_URL=http://localhost:3001
 MCP_INVENTORY_URL=http://localhost:3002
 MCP_FINANCE_URL=http://localhost:3003

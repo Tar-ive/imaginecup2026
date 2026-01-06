@@ -768,13 +768,13 @@ See detailed Azure deployment instructions below.
 │  │  │           Container Apps Env          │                  │    │
 │  │  │  • Managed Identity                   │                  │    │
 │  │  │  • Ingress / HTTPS                    │                  │    │
-│  │  │  • Scaling (0-10 replicas)            │                  │    │
+│  │  │                                       │                  │    │
 │  │  └───────────────────────────────────────┘                  │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 │                                                                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
 │  │  Azure OpenAI   │  │  PostgreSQL     │  │  Application    │     │
-│  │  (GPT-4o-mini)  │  │  Flexible/Neon  │  │  Insights       │     │
+│  │  (GPT-5 -mini)  │  │  Flexible/Neon  │  │  Insights       │     │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -1142,9 +1142,935 @@ WORKFLOW:
 
 ---
 
+## Dashboard: Central Intelligence Hub
+
+### Design Philosophy
+
+The dashboard is the **command center and intelligence panel** for the entire business and supply chain. It's not just a monitoring tool—it provides:
+
+1. **Real-Time Visibility** - Live status of all workflows, inventory, and supplier performance
+2. **Proactive Intelligence** - AI-generated insights and recommendations
+3. **Quick Actions** - One-click approval/rejection of pending decisions
+4. **Programmed Workflows** - Predefined automation patterns users can trigger
+
+### Dashboard Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SUPPLY CHAIN INTELLIGENCE HUB                           │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  HEADER: Real-Time Status Bar                                       │   │
+│  │  [🟢 System Health] [📦 12 Active Orders] [⚠️ 2 Alerts] [🔔 Pending] │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌───────────────────┬─────────────────────────────────────────────────┐   │
+│  │                   │                                                  │   │
+│  │  NAVIGATION       │   MAIN CONTENT AREA                             │   │
+│  │                   │                                                  │   │
+│  │  📊 Overview      │   (Dynamic based on selection)                  │   │
+│  │  🔄 Workflows     │                                                  │   │
+│  │  📦 Inventory     │                                                  │   │
+│  │  🏭 Suppliers     │                                                  │   │
+│  │  📈 Analytics     │                                                  │   │
+│  │  ⚙️ Settings      │                                                  │   │
+│  │                   │                                                  │   │
+│  └───────────────────┴─────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  QUICK ACTIONS BAR                                                   │   │
+│  │  [▶️ Run Optimization] [🚨 Emergency Restock] [📋 Generate Report]   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Programmed Workflows Panel
+
+The Workflows page displays all available automated workflows as cards:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  🔄 PROGRAMMED WORKFLOWS                                        [+ New]    │
+│                                                                             │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐                │
+│  │  📊 INVENTORY            │  │  🚨 DELAY RESPONSE        │                │
+│  │     OPTIMIZATION         │  │                           │                │
+│  │                          │  │  Status: ● Active         │                │
+│  │  Status: ● Ready         │  │  Mode: Auto-Detect        │                │
+│  │  Last Run: 2h ago        │  │  Triggers: 3 today        │                │
+│  │  Next: Scheduled 6:00 AM │  │                           │                │
+│  │                          │  │  [Configure] [View Logs]  │                │
+│  │  [▶️ Run Now] [Schedule]  │  │                           │                │
+│  └──────────────────────────┘  └──────────────────────────┘                │
+│                                                                             │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐                │
+│  │  💰 PRICE MONITORING     │  │  📈 DEMAND FORECASTING    │                │
+│  │                          │  │                           │                │
+│  │  Status: ● Running       │  │  Status: ● Ready          │                │
+│  │  Tracking: 156 ASINs     │  │  Model: XGBoost + Prophet │                │
+│  │  Alerts: 4 price drops   │  │  Accuracy: 94.2%          │                │
+│  │                          │  │                           │                │
+│  │  [View Alerts] [Pause]   │  │  [▶️ Generate] [Retrain]   │                │
+│  └──────────────────────────┘  └──────────────────────────┘                │
+│                                                                             │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐                │
+│  │  🔔 APPROVAL QUEUE       │  │  📊 SUPPLIER SCORECARD    │                │
+│  │                          │  │                           │                │
+│  │  Pending: 3 orders       │  │  Status: ● Updated        │                │
+│  │  Total Value: $12,450    │  │  Last Refresh: 1h ago     │                │
+│  │  Oldest: 45 min          │  │  Suppliers: 24 tracked    │                │
+│  │                          │  │                           │                │
+│  │  [Review All] [Bulk OK]  │  │  [View Scores] [Export]   │                │
+│  └──────────────────────────┘  └──────────────────────────┘                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Approval Modal Component
+
+When human approval is required, a modal appears:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ⚠️ APPROVAL REQUIRED                                            [✕ Close] │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │  ORDER DETAILS                                                        │ │
+│  │                                                                        │ │
+│  │  PO Number: PO-2024-0147                                              │ │
+│  │  Supplier: AgroFresh Distributors                                     │ │
+│  │  Total Value: $8,750.00                                               │ │
+│  │  Urgency: MEDIUM (7 days stock remaining)                             │ │
+│  │                                                                        │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │ ITEM          │ QTY  │ UNIT PRICE │ TOTAL    │ vs. LAST ORDER │  │ │
+│  │  ├───────────────┼──────┼────────────┼──────────┼────────────────┤  │ │
+│  │  │ Butter (1lb)  │ 500  │ $4.20      │ $2,100   │ ↑ 3.2%         │  │ │
+│  │  │ Heavy Cream   │ 200  │ $6.50      │ $1,300   │ ↓ 1.5%         │  │ │
+│  │  │ Whole Milk    │ 800  │ $3.80      │ $3,040   │ = Same         │  │ │
+│  │  │ Eggs (dozen)  │ 350  │ $6.60      │ $2,310   │ ↑ 8.1%         │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                        │ │
+│  │  AI RECOMMENDATION: ✅ Approve                                        │ │
+│  │  "Prices are within 5% of historical average. Demand forecast         │ │
+│  │   indicates reorder is necessary. Supplier reliability: 96%."         │ │
+│  │                                                                        │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────────────┐ │
+│  │ ✅ APPROVE   │  │ ❌ REJECT    │  │ ✏️ MODIFY (Edit quantities)     │ │
+│  └──────────────┘  └──────────────┘  └──────────────────────────────────┘ │
+│                                                                             │
+│  Comment (optional): [_______________________________________________]     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Real-Time Updates via SSE
+
+```python
+# Dashboard receives live updates via Server-Sent Events
+@app.get("/api/dashboard/events")
+async def dashboard_events():
+    """Stream all dashboard events."""
+    async def event_generator():
+        async for event in event_queue.subscribe():
+            yield f"data: {json.dumps(event)}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
+
+# Events emitted:
+# - workflow.started
+# - workflow.step_complete
+# - workflow.approval_requested
+# - workflow.completed
+# - alert.new
+# - inventory.update
+# - supplier.delay_detected
+```
+
+---
+
+## Phase 2: Supplier Delay Response Workflow
+
+### Problem Statement
+
+**Traditional Response to Supplier Delays:**
+1. Buyer discovers delay (often late)
+2. Buyer calls supplier, gets apology but no solution
+3. Buyer manually searches for backup supplier
+4. Premium pricing paid due to urgency
+5. No penalties enforced on original supplier
+
+**AI Agent Response:**
+1. Agent detects delay via logistics tracking API
+2. Immediately assesses stockout risk
+3. Queries pre-approved backup suppliers
+4. Secures bridge order at pre-negotiated emergency rate
+5. Automatically applies late-delivery penalty to original invoice
+
+### Business Value
+
+| Metric | Traditional | With AI Agent | Value |
+|--------|-------------|---------------|-------|
+| Time-to-Recovery | 4-8 hours | 5-15 minutes | 📉 95% faster |
+| Premium Paid | 30-50% markup | 15% (pre-negotiated) | 💰 50% savings on emergency costs |
+| Penalty Recovery | Rarely enforced | Automatic | 💵 100% compliance |
+| Buyer Time | 2-4 hours per incident | 5 min approval | 🧠 90% time saved |
+
+### Workflow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SUPPLIER DELAY RESPONSE WORKFLOW                         │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  1. EVENT TRIGGER: Shipment Delay Detected                          │   │
+│  │                                                                      │   │
+│  │  Sources:                                                            │   │
+│  │  • Webhook from logistics provider (ShipStation, Project44)         │   │
+│  │  • Polling of carrier tracking APIs                                  │   │
+│  │  • Supplier notification email parser                                │   │
+│  │                                                                      │   │
+│  │  Trigger Conditions:                                                 │   │
+│  │  • ETA change > 24 hours                                            │   │
+│  │  • Explicit delay notification received                              │   │
+│  │  • Carrier exception code detected                                   │   │
+│  └────────────────────────────┬────────────────────────────────────────┘   │
+│                               │                                             │
+│                               ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  2. IMPACT ASSESSMENT AGENT                                         │   │
+│  │                                                                      │   │
+│  │  Queries:                                                            │   │
+│  │  • Current inventory levels for affected SKUs                        │   │
+│  │  • Open sales orders / committed demand                              │   │
+│  │  • Safety stock thresholds                                           │   │
+│  │  • Historical consumption rate                                       │   │
+│  │                                                                      │   │
+│  │  Calculates:                                                         │   │
+│  │  • Days of Stock (DOS) = Current Inv / Daily Demand                 │   │
+│  │  • Stockout Date = Today + DOS                                      │   │
+│  │  • Risk Level = GREEN (>14 days) / YELLOW (7-14) / RED (<7)         │   │
+│  └────────────────────────────┬────────────────────────────────────────┘   │
+│                               │                                             │
+│           ┌───────────────────┼───────────────────┐                        │
+│           │ GREEN             │ YELLOW            │ RED                    │
+│           │ (No action)       │ (Prepare)         │ (Urgent)               │
+│           ▼                   ▼                   ▼                        │
+│  ┌────────────────┐  ┌────────────────────┐  ┌────────────────────────┐   │
+│  │ LOG & MONITOR  │  │ BACKUP SOURCING    │  │ EMERGENCY EXECUTION    │   │
+│  │                │  │ AGENT              │  │ AGENT                  │   │
+│  │ • Log incident │  │                    │  │                        │   │
+│  │ • Update ETA   │  │ • Query backups    │  │ • Auto-select backup   │   │
+│  │ • Notify user  │  │ • Get quotes       │  │ • Create bridge PO     │   │
+│  │ • Watch status │  │ • Present options  │  │ • Request expedited    │   │
+│  │                │  │ • Await decision   │  │   approval             │   │
+│  └────────────────┘  └─────────┬──────────┘  └───────────┬────────────┘   │
+│                                │                         │                  │
+│                                └────────────┬────────────┘                  │
+│                                             ▼                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  3. BACKUP SUPPLIER SELECTION                                        │   │
+│  │                                                                      │   │
+│  │  Criteria:                                                           │   │
+│  │  • Pre-approved backup supplier exists                               │   │
+│  │  • Emergency rate agreement in place                                 │   │
+│  │  • Lead time meets urgency requirement                               │   │
+│  │  • Sufficient capacity available                                     │   │
+│  │                                                                      │   │
+│  │  Output: Ranked list of backup options with pricing                  │   │
+│  └────────────────────────────┬────────────────────────────────────────┘   │
+│                               │                                             │
+│                               ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  4. HUMAN APPROVAL (Dashboard Modal)                                 │   │
+│  │                                                                      │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐    │   │
+│  │  │ 🚨 URGENT: Supplier Delay Detected                          │    │   │
+│  │  │                                                              │    │   │
+│  │  │ Original Order: PO-2024-0142 (Dairy Fresh Inc)              │    │   │
+│  │  │ Delay: 4 days (New ETA: Jan 15 → Jan 19)                    │    │   │
+│  │  │ Impact: CRITICAL - Stockout in 3 days                       │    │   │
+│  │  │                                                              │    │   │
+│  │  │ RECOMMENDED ACTION:                                          │    │   │
+│  │  │ Bridge order from AgroFresh (backup supplier)                │    │   │
+│  │  │ • Quantity: 200 units Butter                                 │    │   │
+│  │  │ • Price: $4.83/unit (15% emergency premium)                  │    │   │
+│  │  │ • Delivery: 2 days                                           │    │   │
+│  │  │ • Total: $966.00                                             │    │   │
+│  │  │                                                              │    │   │
+│  │  │ [✅ APPROVE BRIDGE ORDER]  [❌ REJECT]  [⏸️ WAIT]            │    │   │
+│  │  └─────────────────────────────────────────────────────────────┘    │   │
+│  └────────────────────────────┬────────────────────────────────────────┘   │
+│                               │                                             │
+│                               ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  5. ORDER EXECUTION AGENT                                            │   │
+│  │                                                                      │   │
+│  │  If Approved:                                                        │   │
+│  │  • Submit bridge order to backup supplier                            │   │
+│  │  • Update inventory expectations                                     │   │
+│  │  • Notify warehouse of incoming shipment                             │   │
+│  │  • Adjust original order (partial cancel if needed)                  │   │
+│  │                                                                      │   │
+│  │  Always:                                                             │   │
+│  │  • Apply late-delivery penalty to original supplier invoice          │   │
+│  │  • Update supplier reliability score                                 │   │
+│  │  • Log incident for performance tracking                             │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  6. POST-INCIDENT REPORTING                                          │   │
+│  │                                                                      │   │
+│  │  • Generate incident report                                          │   │
+│  │  • Calculate total cost of disruption                                │   │
+│  │  • Update supplier scorecard                                         │   │
+│  │  • Recommend contract renegotiation if pattern detected             │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Database Schema Extensions
+
+```sql
+-- Backup supplier registry with pre-negotiated emergency rates
+CREATE TABLE backup_suppliers (
+    id SERIAL PRIMARY KEY,
+    primary_supplier_id INTEGER REFERENCES suppliers(id),
+    backup_supplier_id INTEGER REFERENCES suppliers(id),
+    asin VARCHAR(20),
+    emergency_rate_multiplier DECIMAL(3,2) DEFAULT 1.15, -- 15% premium
+    max_emergency_quantity INTEGER,
+    lead_time_days INTEGER,
+    min_order_value DECIMAL(10,2),
+    contract_valid_until DATE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Shipment tracking
+CREATE TABLE shipment_tracking (
+    id SERIAL PRIMARY KEY,
+    po_number VARCHAR(20) REFERENCES purchase_orders(po_number),
+    carrier VARCHAR(50),
+    tracking_number VARCHAR(100),
+    original_eta DATE,
+    current_eta DATE,
+    status VARCHAR(30), -- 'on_time', 'delayed', 'exception', 'delivered'
+    last_location VARCHAR(200),
+    last_checked_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Supplier incidents for performance tracking
+CREATE TABLE supplier_incidents (
+    id SERIAL PRIMARY KEY,
+    supplier_id INTEGER REFERENCES suppliers(id),
+    incident_type VARCHAR(50), -- 'late_delivery', 'quality_issue', 'short_ship', 'wrong_item'
+    po_number VARCHAR(20) REFERENCES purchase_orders(po_number),
+    original_eta DATE,
+    actual_eta DATE,
+    delay_days INTEGER,
+    impact_level VARCHAR(10), -- 'GREEN', 'YELLOW', 'RED'
+    penalty_applied DECIMAL(10,2) DEFAULT 0,
+    backup_order_placed BOOLEAN DEFAULT FALSE,
+    backup_po_number VARCHAR(20),
+    backup_cost DECIMAL(10,2),
+    resolved_at TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Supplier performance scores (calculated/cached)
+CREATE TABLE supplier_scores (
+    supplier_id INTEGER PRIMARY KEY REFERENCES suppliers(id),
+    on_time_delivery_rate DECIMAL(5,2), -- percentage
+    quality_score DECIMAL(5,2),
+    response_time_avg_hours DECIMAL(5,1),
+    total_orders INTEGER,
+    total_incidents INTEGER,
+    last_incident_date DATE,
+    reliability_tier VARCHAR(10), -- 'GOLD', 'SILVER', 'BRONZE', 'PROBATION'
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_shipment_status ON shipment_tracking(status);
+CREATE INDEX idx_shipment_eta ON shipment_tracking(current_eta);
+CREATE INDEX idx_incidents_supplier ON supplier_incidents(supplier_id);
+CREATE INDEX idx_backup_primary ON backup_suppliers(primary_supplier_id);
+```
+
+### MCP Tools for Delay Response
+
+```typescript
+// mcp-servers/logistics/src/server.ts
+
+// Tool: Track Shipment
+server.tool(
+  "track_shipment",
+  "Get real-time tracking status for a shipment",
+  {
+    po_number: { type: "string", description: "Purchase order number" },
+  },
+  async ({ po_number }) => {
+    const tracking = await logisticsService.getTracking(po_number);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          tracking_number: tracking.trackingNumber,
+          carrier: tracking.carrier,
+          status: tracking.status,
+          current_eta: tracking.currentEta,
+          original_eta: tracking.originalEta,
+          delay_days: tracking.delayDays,
+          last_location: tracking.lastLocation,
+        }),
+      }],
+    };
+  }
+);
+
+// Tool: Calculate Stockout Risk
+server.tool(
+  "calculate_stockout_risk",
+  "Assess impact of a delay on inventory levels",
+  {
+    asin: { type: "string", description: "Product ASIN" },
+    delay_days: { type: "number", description: "Days of delay" },
+  },
+  async ({ asin, delay_days }) => {
+    const inventory = await inventoryService.getCurrentLevel(asin);
+    const dailyDemand = await forecastService.getDailyDemand(asin);
+    const daysOfStock = inventory / dailyDemand;
+    const stockoutDate = new Date();
+    stockoutDate.setDate(stockoutDate.getDate() + daysOfStock);
+    
+    let riskLevel: 'GREEN' | 'YELLOW' | 'RED';
+    if (daysOfStock > 14) riskLevel = 'GREEN';
+    else if (daysOfStock > 7) riskLevel = 'YELLOW';
+    else riskLevel = 'RED';
+    
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          current_inventory: inventory,
+          daily_demand: dailyDemand,
+          days_of_stock: daysOfStock,
+          stockout_date: stockoutDate.toISOString().split('T')[0],
+          risk_level: riskLevel,
+          recommendation: riskLevel === 'RED' 
+            ? 'Immediate bridge order required'
+            : riskLevel === 'YELLOW'
+              ? 'Monitor closely, prepare backup'
+              : 'No action needed',
+        }),
+      }],
+    };
+  }
+);
+
+// Tool: Query Backup Suppliers
+server.tool(
+  "query_backup_suppliers",
+  "Get quotes from pre-approved backup suppliers",
+  {
+    asin: { type: "string", description: "Product ASIN" },
+    quantity: { type: "number", description: "Quantity needed" },
+    urgency: { type: "string", enum: ["standard", "expedited", "emergency"] },
+  },
+  async ({ asin, quantity, urgency }) => {
+    const backups = await supplierService.getBackupQuotes(asin, quantity, urgency);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(backups.map(b => ({
+          supplier_id: b.supplierId,
+          supplier_name: b.supplierName,
+          unit_price: b.unitPrice,
+          total_price: b.unitPrice * quantity,
+          lead_time_days: b.leadTimeDays,
+          rate_type: urgency,
+          reliability_score: b.reliabilityScore,
+        }))),
+      }],
+    };
+  }
+);
+
+// Tool: Create Bridge Order
+server.tool(
+  "create_bridge_order",
+  "Create an emergency bridge order to backup supplier",
+  {
+    supplier_id: { type: "string" },
+    items: { type: "array" },
+    original_po: { type: "string", description: "Original delayed PO number" },
+    rate_type: { type: "string", enum: ["standard", "emergency"] },
+  },
+  async ({ supplier_id, items, original_po, rate_type }) => {
+    const order = await orderService.createBridgeOrder({
+      supplierId: supplier_id,
+      items,
+      originalPoNumber: original_po,
+      rateType: rate_type,
+    });
+    
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          bridge_po_number: order.poNumber,
+          status: "pending_approval",
+          total: order.totalCost,
+          expected_delivery: order.expectedDelivery,
+        }),
+      }],
+    };
+  }
+);
+
+// Tool: Apply Late Penalty
+server.tool(
+  "apply_late_penalty",
+  "Apply late-delivery penalty to supplier invoice",
+  {
+    po_number: { type: "string" },
+    delay_days: { type: "number" },
+    penalty_rate: { type: "number", description: "Penalty rate per day (percentage)" },
+  },
+  async ({ po_number, delay_days, penalty_rate }) => {
+    const result = await invoiceService.applyPenalty(po_number, delay_days, penalty_rate);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          po_number,
+          original_amount: result.originalAmount,
+          penalty_amount: result.penaltyAmount,
+          adjusted_amount: result.adjustedAmount,
+          penalty_note: `Late delivery penalty: ${delay_days} days × ${penalty_rate}%`,
+        }),
+      }],
+    };
+  }
+);
+```
+
+### Webhook Endpoint for Logistics Events
+
+```python
+# main.py - Add webhook handler
+
+@app.post("/api/webhooks/logistics")
+async def logistics_webhook(event: LogisticsEvent):
+    """
+    Receive shipment events from logistics providers.
+    Triggers the delay response workflow when delays are detected.
+    """
+    if event.type == "shipment_delayed":
+        # Calculate delay
+        original_eta = event.original_eta
+        new_eta = event.new_eta
+        delay_days = (new_eta - original_eta).days
+        
+        if delay_days >= 1:  # Trigger threshold
+            # Start delay response workflow
+            workflow_id = await workflow_service.trigger_delay_response(
+                po_number=event.po_number,
+                delay_days=delay_days,
+                reason=event.reason,
+            )
+            
+            # Emit event to dashboard
+            await emit_dashboard_event("supplier.delay_detected", {
+                "po_number": event.po_number,
+                "delay_days": delay_days,
+                "workflow_id": workflow_id,
+            })
+            
+            return {"status": "workflow_triggered", "workflow_id": workflow_id}
+    
+    return {"status": "logged"}
+```
+
+---
+
+## OpenTelemetry Integration
+
+### Why OpenTelemetry?
+
+- **Distributed Tracing**: Track requests across agents and services
+- **Metrics**: Monitor workflow performance, latency, success rates
+- **Correlation**: Link agent actions to business outcomes
+- **Debugging**: Pinpoint failures in complex multi-agent workflows
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    OBSERVABILITY ARCHITECTURE                               │
+│                                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ FastAPI     │  │ Forecast    │  │ Price       │  │ Ordering    │        │
+│  │ Backend     │  │ Agent       │  │ Agent       │  │ Agent       │        │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│         │                │                │                │                │
+│         └────────────────┴────────────────┴────────────────┘                │
+│                                    │                                        │
+│                                    ▼                                        │
+│         ┌─────────────────────────────────────────────────┐                │
+│         │           OpenTelemetry Collector               │                │
+│         │                                                 │                │
+│         │  • Receives traces, metrics, logs               │                │
+│         │  • Processes and batches                        │                │
+│         │  • Exports to backends                          │                │
+│         └──────────────────────┬──────────────────────────┘                │
+│                                │                                            │
+│              ┌─────────────────┼─────────────────┐                         │
+│              ▼                 ▼                 ▼                         │
+│  ┌───────────────────┐ ┌───────────────┐ ┌───────────────────┐             │
+│  │ Azure Application │ │ Jaeger        │ │ Prometheus        │             │
+│  │ Insights          │ │ (Dev/Debug)   │ │ (Metrics)         │             │
+│  └───────────────────┘ └───────────────┘ └───────────────────┘             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+#### 1. Install Dependencies
+
+```bash
+# Add to pyproject.toml
+pip install opentelemetry-api \
+            opentelemetry-sdk \
+            opentelemetry-exporter-otlp \
+            opentelemetry-instrumentation-fastapi \
+            opentelemetry-instrumentation-httpx \
+            opentelemetry-instrumentation-sqlalchemy
+```
+
+#### 2. Telemetry Configuration
+
+```python
+# services/telemetry.py
+from opentelemetry import trace, metrics
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+import os
+
+def setup_telemetry(app):
+    """Initialize OpenTelemetry for the application."""
+    
+    # Get OTLP endpoint from environment
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    service_name = os.getenv("OTEL_SERVICE_NAME", "supply-chain-agents")
+    
+    # Setup Tracing
+    trace_provider = TracerProvider(
+        resource=Resource.create({
+            "service.name": service_name,
+            "service.version": "1.0.0",
+            "deployment.environment": os.getenv("ENVIRONMENT", "development"),
+        })
+    )
+    
+    trace_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+    trace_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
+    trace.set_tracer_provider(trace_provider)
+    
+    # Setup Metrics
+    metric_reader = PeriodicExportingMetricReader(
+        OTLPMetricExporter(endpoint=otlp_endpoint),
+        export_interval_millis=60000,  # Every 60 seconds
+    )
+    meter_provider = MeterProvider(metric_readers=[metric_reader])
+    metrics.set_meter_provider(meter_provider)
+    
+    # Auto-instrument frameworks
+    FastAPIInstrumentor.instrument_app(app)
+    HTTPXClientInstrumentor().instrument()
+    SQLAlchemyInstrumentor().instrument()
+    
+    return trace.get_tracer(service_name)
+
+# Create tracer for manual instrumentation
+tracer = trace.get_tracer("supply-chain-agents")
+meter = metrics.get_meter("supply-chain-agents")
+
+# Custom metrics
+workflow_counter = meter.create_counter(
+    name="workflow.executions",
+    description="Number of workflow executions",
+    unit="1",
+)
+
+workflow_duration = meter.create_histogram(
+    name="workflow.duration",
+    description="Workflow execution duration",
+    unit="ms",
+)
+
+agent_calls = meter.create_counter(
+    name="agent.calls",
+    description="Number of agent tool calls",
+    unit="1",
+)
+```
+
+#### 3. Agent Instrumentation Decorator
+
+```python
+# services/telemetry.py (continued)
+import functools
+from opentelemetry import trace
+
+def trace_agent_action(agent_name: str):
+    """Decorator to trace agent actions with OpenTelemetry."""
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            with tracer.start_as_current_span(
+                name=f"{agent_name}.{func.__name__}",
+                attributes={
+                    "agent.name": agent_name,
+                    "agent.action": func.__name__,
+                }
+            ) as span:
+                try:
+                    result = await func(*args, **kwargs)
+                    span.set_attribute("agent.success", True)
+                    agent_calls.add(1, {"agent": agent_name, "action": func.__name__, "status": "success"})
+                    return result
+                except Exception as e:
+                    span.set_attribute("agent.success", False)
+                    span.set_attribute("agent.error", str(e))
+                    span.record_exception(e)
+                    agent_calls.add(1, {"agent": agent_name, "action": func.__name__, "status": "error"})
+                    raise
+        return wrapper
+    return decorator
+
+# Usage in agents
+class PriceMonitoringAgent:
+    @trace_agent_action("PriceMonitoringAgent")
+    async def get_supplier_prices(self, asin: str):
+        # ... implementation
+        pass
+```
+
+#### 4. Workflow Tracing
+
+```python
+# services/workflow_service.py
+from services.telemetry import tracer, workflow_counter, workflow_duration
+import time
+
+class WorkflowService:
+    async def run_optimization_workflow(self, product_filter=None):
+        with tracer.start_as_current_span(
+            name="workflow.inventory_optimization",
+            attributes={
+                "workflow.type": "inventory_optimization",
+                "workflow.filter": product_filter or "all",
+            }
+        ) as span:
+            start_time = time.time()
+            workflow_id = str(uuid.uuid4())
+            span.set_attribute("workflow.id", workflow_id)
+            
+            try:
+                # Step 1: Forecast
+                with tracer.start_as_current_span("step.forecast"):
+                    forecast_result = await self._run_forecast(product_filter)
+                
+                # Step 2: Price Check
+                with tracer.start_as_current_span("step.price_check"):
+                    price_result = await self._check_prices(forecast_result)
+                
+                # Step 3: Generate Orders
+                with tracer.start_as_current_span("step.generate_orders"):
+                    orders = await self._generate_orders(price_result)
+                
+                # Record success
+                duration_ms = (time.time() - start_time) * 1000
+                workflow_counter.add(1, {"workflow": "inventory_optimization", "status": "success"})
+                workflow_duration.record(duration_ms, {"workflow": "inventory_optimization"})
+                
+                return orders
+                
+            except Exception as e:
+                workflow_counter.add(1, {"workflow": "inventory_optimization", "status": "error"})
+                span.record_exception(e)
+                raise
+```
+
+#### 5. Application Integration
+
+```python
+# main.py
+from services.telemetry import setup_telemetry
+
+app = FastAPI(title="Supply Chain Agents")
+
+# Initialize OpenTelemetry on startup
+@app.on_event("startup")
+async def startup():
+    setup_telemetry(app)
+    # ... other startup tasks
+```
+
+### Docker Compose for Local Development
+
+```yaml
+# docker-compose.observability.yml
+version: '3.8'
+
+services:
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    networks:
+      - observability
+
+  # Jaeger for trace visualization
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector
+    networks:
+      - observability
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - observability
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  grafana-data:
+```
+
+### OpenTelemetry Collector Configuration
+
+```yaml
+# otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+exporters:
+  # For local development
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+  
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+  
+  # For Azure (production)
+  azuremonitor:
+    connection_string: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger, azuremonitor]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, azuremonitor]
+```
+
+### Azure Deployment with Application Insights
+
+```bicep
+// infra/modules/app-insights.bicep
+param name string
+param location string
+
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+  name: '${name}-logs'
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: name
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
+output connectionString string = appInsights.properties.ConnectionString
+output instrumentationKey string = appInsights.properties.InstrumentationKey
+```
+
+---
+
 ## Current Implementation Status
 
-### ✅ Completed
+### ✅ Phase 1: Core Functionality (Completed)
 
 - [x] Demand Forecasting Model (XGBoost + Statistical)
 - [x] Model Service with Confidence Intervals
@@ -1153,15 +2079,63 @@ WORKFLOW:
 - [x] Setup Script for Easy Installation
 - [x] Comprehensive README
 
-### 🔄 In Progress
+### 🔄 Phase 2: Production Readiness (In Progress)
 
-- [ ] MCP Ordering Server Implementation
-- [ ] Azure Infrastructure (Bicep)
-- [ ] Human-in-the-Loop Approval System
+- [ ] **Dashboard Intelligence Hub**
+  - [ ] Programmed Workflows Panel
+  - [ ] Approval Modal Component
+  - [ ] Real-time event streaming
+  - [ ] Supplier Performance Dashboard
+- [ ] **MCP Ordering Server Implementation**
+  - [ ] create_purchase_order tool
+  - [ ] submit_order tool
+  - [ ] get_order_status tool
+- [ ] **Human-in-the-Loop Approval System**
+  - [ ] Checkpointing storage
+  - [ ] Approval API endpoints
+  - [ ] Dashboard approval UI
 
-### 📋 Planned
+### 📋 Phase 3: Deployment & Observability (Planned)
 
-- [ ] Cosmos DB Checkpoint Storage
-- [ ] OpenTelemetry Integration
-- [ ] Scheduled Workflow Triggers
+- [ ] **OpenTelemetry Integration**
+  - [ ] Tracing setup
+  - [ ] Metrics collection
+  - [ ] Agent instrumentation decorators
+  - [ ] Grafana dashboards
+- [ ] **Azure Infrastructure (Bicep)**
+  - [ ] Container Apps environment
+  - [ ] Application Insights
+  - [ ] Key Vault for secrets
+  - [ ] azd deployment workflow
+
+### 🚀 Phase 4: Supply Chain Resilience (Planned)
+
+- [ ] **Supplier Delay Response Workflow**
+  - [ ] Logistics webhook integration
+  - [ ] Impact Assessment Agent
+  - [ ] Backup Sourcing Agent
+  - [ ] Emergency Execution Agent
+- [ ] **Database Extensions**
+  - [ ] backup_suppliers table
+  - [ ] shipment_tracking table
+  - [ ] supplier_incidents table
+  - [ ] supplier_scores table
+- [ ] **New MCP Tools**
+  - [ ] track_shipment
+  - [ ] calculate_stockout_risk
+  - [ ] query_backup_suppliers
+  - [ ] create_bridge_order
+  - [ ] apply_late_penalty
+
+---
+
+## Implementation Priority Matrix
+
+| Feature | Business Impact | Technical Effort | Priority |
+|---------|----------------|------------------|----------|
+| Dashboard Approval Modal | High (blocks orders) | Medium | 🔴 P0 |
+| OpenTelemetry | Medium (debugging) | Low | 🟡 P1 |
+| Azure Deployment | High (production) | Medium | 🟡 P1 |
+| Delay Response Workflow | Very High (resilience) | High | 🟢 P2 |
+| Supplier Scorecard | Medium (insights) | Low | 🟢 P2 |
 
