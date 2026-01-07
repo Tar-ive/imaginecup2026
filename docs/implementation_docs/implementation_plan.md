@@ -1127,6 +1127,199 @@ WORKFLOW:
 
 ---
 
+## MCP Deployment with OpenTelemetry
+
+### Deployment Reference
+
+See [mcp_deploy.md](../mcp_deploy.md) for the official Azure MCP Server deployment guide using `azd`.
+
+### Custom MCP Server with Telemetry
+
+For supply chain MCP servers, we extend the pattern with OpenTelemetry:
+
+#### Python MCP Server Template
+
+```python
+# mcp-servers/supplier-data/server.py
+from fastapi import FastAPI
+from mcp.server.fastapi import add_mcp_routes
+from mcp import Tool
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
+import os
+
+# ============ OpenTelemetry Setup ============
+resource = Resource.create({
+    "service.name": os.getenv("OTEL_SERVICE_NAME", "mcp-supplier-server"),
+    "service.version": "1.0.0",
+})
+
+provider = TracerProvider(resource=resource)
+
+# Export to Azure Monitor if connection string provided
+app_insights_conn = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+if app_insights_conn:
+    azure_exporter = AzureMonitorTraceExporter.from_connection_string(app_insights_conn)
+    provider.add_span_processor(BatchSpanProcessor(azure_exporter))
+else:
+    # Local OTLP collector
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+    provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer(__name__)
+
+# ============ FastAPI App ============
+app = FastAPI(title="Supplier Data MCP Server")
+
+# ============ MCP Tools with Telemetry ============
+@app.tool()
+async def get_suppliers(category: str = None):
+    """Get all suppliers, optionally filtered by category."""
+    with tracer.start_as_current_span("mcp.get_suppliers") as span:
+        span.set_attribute("supplier.category_filter", category or "all")
+        
+        # Your implementation
+        suppliers = await db.fetch_suppliers(category)
+        
+        span.set_attribute("supplier.count", len(suppliers))
+        return {"suppliers": suppliers}
+
+@app.tool()
+async def get_supplier_products(supplier_id: str):
+    """Get products for a specific supplier."""
+    with tracer.start_as_current_span("mcp.get_supplier_products") as span:
+        span.set_attribute("supplier.id", supplier_id)
+        
+        products = await db.fetch_products_by_supplier(supplier_id)
+        
+        span.set_attribute("product.count", len(products))
+        return {"products": products}
+
+# Add MCP routes
+add_mcp_routes(app, path="/mcp")
+
+# Health check
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "mcp-supplier-server"}
+```
+
+#### Dockerfile for MCP Server
+
+```dockerfile
+# mcp-servers/supplier-data/Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD python -c "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### requirements.txt for MCP Server
+
+```txt
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+mcp>=0.1.0
+httpx>=0.27.0
+opentelemetry-api>=1.30.0
+opentelemetry-sdk>=1.30.0
+opentelemetry-exporter-otlp-proto-grpc>=1.30.0
+azure-monitor-opentelemetry-exporter>=1.0.0b12
+sqlalchemy>=2.0.30
+psycopg2-binary
+```
+
+### Deploy MCP to Same Container Apps Environment
+
+```bash
+# ============ Step 1: Build and Push ============
+cd mcp-servers/supplier-data
+
+# Login to ACR
+az acr login --name imaginecupreg999
+
+# Build and push
+docker build -t imaginecupreg999.azurecr.io/mcp-supplier:v1 .
+docker push imaginecupreg999.azurecr.io/mcp-supplier:v1
+
+# ============ Step 2: Get App Insights Connection String ============
+APP_INSIGHTS_CONN=$(az monitor app-insights component show \
+  --app imaginecup7299870127 \
+  --resource-group ImagineCup \
+  --query connectionString -o tsv)
+
+# ============ Step 3: Deploy as Container App ============
+az containerapp create \
+  --name mcp-supplier-server \
+  --resource-group ImagineCup \
+  --environment imagine-cup-env \
+  --image imaginecupreg999.azurecr.io/mcp-supplier:v1 \
+  --target-port 8000 \
+  --ingress internal \
+  --min-replicas 1 \
+  --max-replicas 3 \
+  --cpu 0.25 \
+  --memory 0.5Gi \
+  --registry-server imaginecupreg999.azurecr.io \
+  --set-env-vars \
+    "OTEL_SERVICE_NAME=mcp-supplier-server" \
+    "APPLICATIONINSIGHTS_CONNECTION_STRING=${APP_INSIGHTS_CONN}" \
+    "DATABASE_URL=secretref:database-url"
+
+# ============ Step 4: Get Internal URL ============
+MCP_SUPPLIER_URL=$(az containerapp show \
+  --name mcp-supplier-server \
+  --resource-group ImagineCup \
+  --query properties.configuration.ingress.fqdn -o tsv)
+
+echo "MCP Supplier URL: https://${MCP_SUPPLIER_URL}"
+```
+
+### Connect MCP Servers to Main API
+
+After deploying MCP servers, update the main API:
+
+```bash
+# Update main API with MCP URLs
+az containerapp update \
+  --name amazon-api-app \
+  --resource-group ImagineCup \
+  --set-env-vars \
+    "MCP_SUPPLIER_URL=https://mcp-supplier-server.internal.imagine-cup-env.eastus.azurecontainerapps.io" \
+    "MCP_INVENTORY_URL=https://mcp-inventory-server.internal.imagine-cup-env.eastus.azurecontainerapps.io" \
+    "MCP_FINANCE_URL=https://mcp-finance-server.internal.imagine-cup-env.eastus.azurecontainerapps.io"
+```
+
+### MCP Server Matrix
+
+| Server | Purpose | Tools | Priority |
+|--------|---------|-------|----------|
+| `mcp-supplier-server` | Supplier data access | get_suppliers, get_supplier_products, get_supplier_prices | P1 |
+| `mcp-inventory-server` | Inventory operations | get_stock_levels, update_inventory, get_low_stock | P1 |
+| `mcp-ordering-server` | Order management | create_purchase_order, submit_order, get_order_status | P2 |
+| `mcp-finance-server` | Financial data | get_exchange_rates, get_budget, calculate_cost | P2 |
+| `mcp-logistics-server` | Shipment tracking | track_shipment, calculate_stockout_risk | P3 |
+
+> [!NOTE]
+> **MCP servers are optional for initial deployment.** The main FastAPI backend has direct database access and can function without MCP servers. Add MCPs incrementally as you expand agent capabilities.
+
 ## Files to Create
 
 | File | Purpose |
@@ -1734,8 +1927,8 @@ async def logistics_webhook(event: LogisticsEvent):
 │              ┌─────────────────┼─────────────────┐                         │
 │              ▼                 ▼                 ▼                         │
 │  ┌───────────────────┐ ┌───────────────┐ ┌───────────────────┐             │
-│  │ Azure Application │ │ Jaeger        │ │ Prometheus        │             │
-│  │ Insights          │ │ (Dev/Debug)   │ │ (Metrics)         │             │
+│  │ Azure Application │ │               │ │                   │             │
+│  │ Insights          │ │               │ │                   │             │
 │  └───────────────────┘ └───────────────┘ └───────────────────┘             │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
