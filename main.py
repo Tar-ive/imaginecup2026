@@ -34,10 +34,16 @@ class ChatRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Testing database connection...")
-    if not test_connection():
-        raise RuntimeError("Failed to connect to database")
-    print("✅ Database connection established")
-    
+    try:
+        if not test_connection():
+            logger.warning("Database connection test failed - endpoints requiring DB may not work")
+            print("⚠️ Database connection failed - some endpoints may not work")
+        else:
+            print("✅ Database connection established")
+    except Exception as e:
+        logger.warning(f"Database connection error: {e}")
+        print(f"⚠️ Database connection error: {e}")
+
     # Initialize agent workflow
     print("Initializing Supply Chain Agents...")
     try:
@@ -46,12 +52,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize agents: {e}")
         print(f"⚠️ Agent workflow failed to initialize: {e}")
-    
+
     yield
-    
+
     # Cleanup
-    await tool_registry.close_all()
-    print("✅ Cleanup complete")
+    try:
+        await tool_registry.close_all()
+        print("✅ Cleanup complete")
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
 
 
 app = FastAPI(lifespan=lifespan)
