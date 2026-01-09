@@ -323,5 +323,18 @@
       "requires_approval": true
     },
     "id": "59d9954e-edf8-4f5f-a095-b963e3346826"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T19:40:02.277187",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 1,
+      "total_value": 783.52,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "657145d6-4b66-4d89-86e0-51ac10d03a58"
+    },
+    "id": "3c9207c7-5488-48fb-bd48-e42066a0f2fa"
   }
 ]

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 const API_PROXY = "/api/proxy"
 
@@ -30,9 +30,22 @@ export function useSupplyChainMetrics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Store radar metrics separately - only calculated once on initial load
+  const radarMetricsRef = useRef({
+    inventoryTurnover: 4.2,
+    demandAccuracy: 87,
+    priceCompetitiveness: 92,
+    supplierPerformance: 85,
+    stockoutRisk: 12,
+  })
+  const radarInitialized = useRef(false)
+
   useEffect(() => {
     async function loadMetrics() {
-      setLoading(true)
+      // Only show loading spinner on first load
+      if (!radarInitialized.current) {
+        setLoading(true)
+      }
       setError(null)
 
       try {
@@ -85,37 +98,42 @@ export function useSupplyChainMetrics() {
             return sum + value
           }, 0)
 
-        // Calculate supplier performance from on-time delivery rates
-        const supplierPerformance = supplierList.length > 0
-          ? Math.round(
-            supplierList.reduce((sum: number, s: any) =>
-              sum + ((s.on_time_delivery_rate || 0.85) * 100), 0
-            ) / supplierList.length
-          )
-          : 85
+        // Only calculate radar metrics on first load - they stay stable after that
+        if (!radarInitialized.current) {
+          // Calculate supplier performance from on-time delivery rates
+          const supplierPerformance = supplierList.length > 0
+            ? Math.round(
+              supplierList.reduce((sum: number, s: any) =>
+                sum + ((s.on_time_delivery_rate || 0.85) * 100), 0
+              ) / supplierList.length
+            )
+            : 85
 
-        // Calculate stockout risk based on low stock count
-        const stockoutRisk = productList.length > 0
-          ? Math.round((lowStockList.length / productList.length) * 100)
-          : 0
+          // Calculate stockout risk based on low stock count
+          const stockoutRisk = productList.length > 0
+            ? Math.round((lowStockList.length / productList.length) * 100)
+            : 12
+
+          radarMetricsRef.current = {
+            inventoryTurnover: 4.2,
+            demandAccuracy: 87,
+            priceCompetitiveness: 92,
+            supplierPerformance,
+            stockoutRisk,
+          }
+          radarInitialized.current = true
+        }
 
         setMetrics({
-          // Real metrics from API
+          // Radar metrics - stable, calculated once
+          ...radarMetricsRef.current,
+
+          // Analytics metrics - refreshed each time
           totalInventoryValue,
           totalProducts: summary?.total_products || productList.length,
           activeSuppliers: supplierList.filter((s: any) => s.is_active !== false).length,
           lowStockCount: summary?.low_stock_count || lowStockList.length,
           pendingOrders: ordersList.length,
-
-          // Calculated/derived metrics
-          supplierPerformance,
-          stockoutRisk,
-
-          // These could come from more sophisticated analysis
-          // For now using reasonable estimates based on data
-          inventoryTurnover: 4.2,
-          demandAccuracy: 87,
-          priceCompetitiveness: 92,
         })
       } catch (err) {
         console.error("[SupplyMind] Error loading metrics:", err)
@@ -123,11 +141,7 @@ export function useSupplyChainMetrics() {
 
         // Set fallback metrics
         setMetrics({
-          inventoryTurnover: 4.2,
-          demandAccuracy: 87,
-          supplierPerformance: 85,
-          priceCompetitiveness: 92,
-          stockoutRisk: 12,
+          ...radarMetricsRef.current,
           totalInventoryValue: 0,
           totalProducts: 0,
           activeSuppliers: 0,
@@ -141,7 +155,7 @@ export function useSupplyChainMetrics() {
 
     loadMetrics()
 
-    // Refresh metrics every 30 seconds (reduced from 5s to prevent UI flicker)
+    // Refresh analytics every 30 seconds - radar chart stays stable
     const interval = setInterval(loadMetrics, 30000)
     return () => clearInterval(interval)
   }, [])

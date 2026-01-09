@@ -3,20 +3,23 @@
 import { useState, useEffect } from "react"
 import { DataCard } from "@/components/data-card"
 import { WorkflowEngineCard } from "@/components/workflow-engine-card"
+import { HistoryPanel } from "@/components/history-panel"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, BarChart3 } from "lucide-react"
+import { ChevronLeft, ChevronRight, BarChart3, History } from "lucide-react"
 
 export default function Dashboard() {
   const [isMobile, setIsMobile] = useState(false)
   const [showDataPanel, setShowDataPanel] = useState(true)
+  const [showHistoryPanel, setShowHistoryPanel] = useState(true)
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 1024
       setIsMobile(mobile)
-      // Auto-collapse data panel on mobile
+      // Auto-collapse panels on mobile
       if (mobile) {
         setShowDataPanel(false)
+        setShowHistoryPanel(false)
       }
     }
 
@@ -44,6 +47,18 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* Toggle History Panel Button */}
+              {!isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+                  className="text-white hover:bg-white/10"
+                >
+                  <History size={16} className="mr-2" />
+                  {showHistoryPanel ? "Hide History" : "Show History"}
+                </Button>
+              )}
               {/* Toggle Data Panel Button */}
               {!isMobile && (
                 <Button
@@ -76,30 +91,48 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isMobile ? (
-          // Mobile: Stacked layout with collapsible data panel
+          // Mobile: Stacked layout with collapsible panels
           <div className="space-y-6">
-            {/* Data Panel Toggle for Mobile */}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setShowDataPanel(!showDataPanel)}
-            >
-              <BarChart3 size={16} className="mr-2" />
-              {showDataPanel ? "Hide Analytics" : "Show Analytics"}
-            </Button>
+            {/* Panel Toggles for Mobile */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowHistoryPanel(!showHistoryPanel)}
+              >
+                <History size={16} className="mr-2" />
+                {showHistoryPanel ? "Hide History" : "Show History"}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDataPanel(!showDataPanel)}
+              >
+                <BarChart3 size={16} className="mr-2" />
+                {showDataPanel ? "Hide Analytics" : "Show Analytics"}
+              </Button>
+            </div>
 
+            {showHistoryPanel && <HistoryPanel />}
             {showDataPanel && <DataCard />}
             <WorkflowEngineCard />
           </div>
         ) : (
-          // Desktop: Workflow-focused layout with optional data sidebar
+          // Desktop: Three-column layout with sidebars
           <div className="flex gap-6">
+            {/* History Panel - Left Sidebar */}
+            {showHistoryPanel && (
+              <div className="w-[350px] flex-shrink-0 transition-all duration-300">
+                <HistoryPanel />
+              </div>
+            )}
+
             {/* Workflow Engine - Primary Focus */}
-            <div className={`transition-all duration-300 ${showDataPanel ? 'flex-1' : 'w-full'}`}>
+            <div className="flex-1 transition-all duration-300">
               <WorkflowEngineCard />
             </div>
 
-            {/* Data Panel - Collapsible Sidebar */}
+            {/* Data Panel - Right Sidebar */}
             {showDataPanel && (
               <div className="w-[450px] flex-shrink-0 transition-all duration-300">
                 <DataCard />
