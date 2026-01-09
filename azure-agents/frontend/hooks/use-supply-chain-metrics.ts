@@ -141,8 +141,8 @@ export function useSupplyChainMetrics() {
 
     loadMetrics()
 
-    // Refresh metrics every 60 seconds
-    const interval = setInterval(loadMetrics, 60000)
+    // Refresh metrics every 5 seconds
+    const interval = setInterval(loadMetrics, 5000)
     return () => clearInterval(interval)
   }, [])
 

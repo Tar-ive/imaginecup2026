@@ -11,7 +11,8 @@ import {
   Bot,
   ClipboardCheck,
   Workflow,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from "lucide-react"
 
 import { useWorkflowStream } from "@/hooks/use-workflow-stream"
@@ -19,6 +20,7 @@ import { useApprovals } from "@/hooks/use-approvals"
 import { WorkflowTriggers } from "@/components/workflow-triggers"
 import { AgentActivityPanel } from "@/components/agent-activity-panel"
 import { ApprovalQueue } from "@/components/approval-queue"
+import { WorkflowHistory } from "@/components/workflow-history"
 
 export function WorkflowEngineCard() {
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | undefined>()
@@ -199,7 +201,7 @@ export function WorkflowEngineCard() {
             )}
 
             <AgentActivityPanel
-              events={events}
+              events={events as any}
               isActive={isActive}
             />
           </TabsContent>
@@ -213,6 +215,11 @@ export function WorkflowEngineCard() {
               onRefresh={refreshApprovals}
               isLoading={approvalsLoading}
             />
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="p-4 mt-0">
+            <WorkflowHistory />
           </TabsContent>
         </Tabs>
       </CardContent>

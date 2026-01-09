@@ -99,6 +99,8 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                 return "Initializing services..."
             case "products_loaded":
                 return `Loaded ${event.count || 0} products for analysis`
+            case "products_list":
+                return "Retrieved product details..."
             case "analyzing":
                 return event.message || `Analyzing products... (${event.progress || 0}%)`
             case "forecasting_complete":
@@ -354,6 +356,30 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                                                             {event.data.message.slice(0, 500)}
                                                             {event.data.message.length > 500 ? "..." : ""}
                                                         </p>
+                                                    )}
+                                                    {(event as any).products && (
+                                                        <div className="mt-2 text-xs overflow-x-auto">
+                                                            <table className="min-w-full border-collapse">
+                                                                <thead>
+                                                                    <tr className="bg-gray-100">
+                                                                        <th className="p-1 border text-left">ASIN</th>
+                                                                        <th className="p-1 border text-left">Title</th>
+                                                                        <th className="p-1 border text-right">Price</th>
+                                                                        <th className="p-1 border text-right">Stock</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {(event as any).products.map((p: any, i: number) => (
+                                                                        <tr key={i} className="border-t">
+                                                                            <td className="p-1 border text-gray-600">{p.asin}</td>
+                                                                            <td className="p-1 border text-gray-800 truncate max-w-[150px]">{p.title}</td>
+                                                                            <td className="p-1 border text-right text-green-600">${p.price?.toFixed(2)}</td>
+                                                                            <td className="p-1 border text-right">{p.stock}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     )}
                                                     {event.data?.delta && (
                                                         <p className="text-gray-600">

@@ -11,7 +11,11 @@ import {
   AlertCircle,
   Truck,
   ShoppingCart,
-  RefreshCw
+  RefreshCw,
+  Database,
+  Server,
+  Globe,
+  LayoutGrid
 } from "lucide-react"
 
 export function DataCard() {
@@ -152,37 +156,42 @@ export function DataCard() {
 
         {/* Integration Hub */}
         <div className="border-t pt-4" style={{ borderColor: "#bdc3c7" }}>
-          <p className="text-sm font-semibold mb-3" style={{ color: "#2c3e50" }}>
-            Data Sources
-          </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold" style={{ color: "#2c3e50" }}>
+              Active Integrations
+            </p>
+            <Badge variant="outline" className="text-xs">System Healthy</Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { name: "Amazon API", status: "live" },
-              { name: "PostgreSQL", status: "live" },
-              { name: "MCP Tools", status: "live" },
-              { name: "Shopify", status: "coming_soon" },
-              { name: "SAP", status: "coming_soon" },
-              { name: "EDI", status: "coming_soon" },
-            ].map((integration) => (
+              { name: "Azure SQL", status: "active", icon: Database, desc: "Primary Data Store" },
+              { name: "MCP Protocol", status: "active", icon: Server, desc: "Agent Tooling" },
+              { name: "Supplier APIs", status: "active", icon: Globe, desc: "External Data" },
+              { name: "ERP Connectivity", status: "inactive", icon: LayoutGrid, desc: "Not Configured" },
+            ].map((item) => (
               <div
-                key={integration.name}
-                className="p-2 rounded-lg text-center"
-                style={{ backgroundColor: "#ecf0f1" }}
+                key={item.name}
+                className="p-2 rounded-lg border flex items-center gap-3 bg-white"
+                style={{ borderColor: "#ecf0f1" }}
               >
-                <p className="text-xs font-medium" style={{ color: "#2c3e50" }}>
-                  {integration.name}
-                </p>
-                <Badge
-                  variant="outline"
-                  className="mt-1 text-xs"
-                  style={{
-                    backgroundColor: integration.status === "live" ? "#2ecc71" : "#95a5a6",
-                    color: "white",
-                    border: "none",
-                  }}
+                <div
+                  className="p-2 rounded-md"
+                  style={{ backgroundColor: item.status === 'active' ? '#e8f8f5' : '#f4f6f6' }}
                 >
-                  {integration.status === "live" ? "Live" : "Soon"}
-                </Badge>
+                  <item.icon
+                    size={16}
+                    style={{ color: item.status === 'active' ? '#1abc9c' : '#95a5a6' }}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold" style={{ color: "#2c3e50" }}>{item.name}</p>
+                    {item.status === 'active' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>

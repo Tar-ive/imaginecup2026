@@ -25,7 +25,7 @@ export function useApprovals() {
                 throw new Error(`HTTP ${response.status}`)
             }
             const data = await response.json()
-            setApprovals(Array.isArray(data) ? data : data.approvals || [])
+            setApprovals(Array.isArray(data) ? data : data.pending || [])
         } catch (err) {
             console.error("[SupplyMind] Error fetching approvals:", err)
             setError(err instanceof Error ? err.message : "Failed to fetch approvals")
@@ -38,7 +38,7 @@ export function useApprovals() {
     const approve = useCallback(async (workflowId: string) => {
         try {
             const response = await fetch(
-                `${API_PROXY}/api/workflows/approve/${workflowId}?decision=approve`,
+                `${API_PROXY}/api/workflows/approvals/${workflowId}/approve`,
                 { method: "POST" }
             )
             if (!response.ok) {
@@ -56,11 +56,9 @@ export function useApprovals() {
 
     const reject = useCallback(async (workflowId: string, reason?: string) => {
         try {
-            const params = new URLSearchParams({ decision: "reject" })
-            if (reason) params.append("comment", reason)
-
+            // Reason is optional and not currently used by backend
             const response = await fetch(
-                `${API_PROXY}/api/workflows/approve/${workflowId}?${params}`,
+                `${API_PROXY}/api/workflows/approvals/${workflowId}/reject`,
                 { method: "POST" }
             )
             if (!response.ok) {

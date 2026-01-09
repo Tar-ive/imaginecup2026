@@ -1,0 +1,80 @@
+[
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T15:02:32.570338",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 2,
+      "orders_recommended": 1,
+      "total_value": 783.52,
+      "elapsed_seconds": 5.31,
+      "requires_approval": true
+    },
+    "id": "6b257e03-0030-4ea0-8ffc-48e9a2a918a2"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T15:06:23.336637",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 50,
+      "orders_recommended": 3,
+      "total_value": 9483.89,
+      "elapsed_seconds": 4.35,
+      "requires_approval": true
+    },
+    "id": "b5763e3a-5381-4f74-9b9c-876447a0d400"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T15:08:27.093023",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 41,
+      "orders_recommended": 8,
+      "total_value": 70157.48000000001,
+      "elapsed_seconds": 3.87,
+      "requires_approval": true
+    },
+    "id": "5c1b5df5-0011-4413-bc3f-68171575ee13"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T15:10:43.502667",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 50,
+      "orders_recommended": 3,
+      "total_value": 9483.89,
+      "elapsed_seconds": 4.81,
+      "requires_approval": true
+    },
+    "id": "f264c989-6fee-4d5b-95a7-77248c7b0453"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T15:11:03.921030",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 2,
+      "orders_recommended": 1,
+      "total_value": 783.52,
+      "elapsed_seconds": 3.83,
+      "requires_approval": true
+    },
+    "id": "e242ca55-0ff0-47bf-8f89-dda4452c91b4"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T15:11:27.713643",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 1,
+      "total_value": 783.52,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "784751b8-6383-4b2c-8800-ee48dc7e80c2"
+    },
+    "id": "f1e27e57-8f37-4968-8ca7-43f24a78a29e"
+  }
+]

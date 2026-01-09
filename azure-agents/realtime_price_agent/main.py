@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 
 from fastapi import FastAPI, Query, HTTPException, Depends
 from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
@@ -486,19 +487,151 @@ def compare_prices(asin: str, db: Session = Depends(get_db)):
 # ========== WORKFLOW ENDPOINTS ==========
 
 
+# ========== HUMAN IN THE LOOP APPROVALS ==========
+
+# Simple in-memory storage for approvals
+APPROVAL_QUEUE = {}
+HISTORY_FILE = Path("workflow_history.json")
+
+def save_history(entry: dict):
+    """Save workflow run to history file."""
+    try:
+        history = []
+        if HISTORY_FILE.exists():
+            content = HISTORY_FILE.read_text()
+            if content:
+                history = json.loads(content)
+        
+        # Add ID if missing
+        if "id" not in entry:
+            import uuid
+            entry["id"] = str(uuid.uuid4())
+            
+        history.append(entry)
+        
+        # Keep last 50
+        if len(history) > 50:
+            history = history[-50:]
+            
+        HISTORY_FILE.write_text(json.dumps(history, indent=2))
+    except Exception as e:
+        logger.error(f"Failed to save history: {e}")
+
 @app.get("/api/workflows/pending-approvals")
 def get_pending_approvals():
-    """Get pending human-in-the-loop approval requests.
+    """Get pending human-in-the-loop approval requests."""
+    approvals_list = []
     
-    Returns list of workflow actions awaiting human approval.
-    Currently returns empty list as HITL is not yet implemented.
-    """
-    # TODO: Implement HITL approval queue
+    for workflow_id, data in APPROVAL_QUEUE.items():
+        # Flatten all items from all supplier recommendations for display
+        all_items = []
+        for rec in data["recommendations"]:
+            for item in rec["items"]:
+                all_items.append({
+                    "asin": item["asin"],
+                    "title": item["title"],
+                    "quantity": item["quantity"],
+                    "unit_price": item["unit_price"],
+                    "supplier": rec["supplier_name"]
+                })
+        
+        approvals_list.append({
+            "workflow_id": workflow_id,
+            "type": "order_approval",
+            "message": f"Approve orders for {len(data['recommendations'])} suppliers",
+            "created_at": data["timestamp"],
+            "status": "pending",
+            "context": {
+                "total": data["total_value"],
+                "supplier_count": len(data["recommendations"]),
+                "items": all_items
+            }
+        })
+    
+    # Sort by timestamp desc
+    approvals_list.sort(key=lambda x: x["created_at"], reverse=True)
+    
     return {
-        "pending": [],
-        "count": 0,
-        "message": "No pending approvals"
+        "pending": approvals_list,
+        "count": len(approvals_list)
     }
+
+@app.get("/api/workflows/history")
+def get_workflow_history():
+    """Get history of workflow runs."""
+    try:
+        if HISTORY_FILE.exists():
+            content = HISTORY_FILE.read_text()
+            if content:
+                return json.loads(content)
+    except Exception:
+        pass
+    return []
+
+@app.post("/api/workflows/approvals/{workflow_id}/approve")
+def approve_workflow(workflow_id: str, db: Session = Depends(get_db)):
+    """Approve a pending workflow action (create orders)."""
+    try:
+        if workflow_id not in APPROVAL_QUEUE:
+            raise HTTPException(status_code=404, detail="Approval request not found")
+        
+        data = APPROVAL_QUEUE[workflow_id]
+        recommendations = data["recommendations"]
+        
+        # Create orders
+        from services.workflow_service import WorkflowService
+        workflow_service = WorkflowService(db)
+        
+        created_orders = []
+        errors = []
+        
+        for rec in recommendations:
+            try:
+                order = workflow_service._create_purchase_order(rec)
+                if order:
+                    created_orders.append(order.po_number)
+            except Exception as e:
+                logger.error(f"Failed to create order for {rec['supplier_id']}: {e}")
+                errors.append(str(e))
+                
+        # Save completion to history
+        try:
+            save_history({
+                "type": "optimization_workflow",
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "completed",
+                "triggered_by": "user_approval",
+                "result": {
+                    "orders_created": len(created_orders),
+                    "total_value": data["total_value"],
+                    "products_analyzed": "N/A (Pending Approval)", 
+                    "workflow_id": workflow_id
+                }
+            })
+        except Exception as e:
+            logger.error(f"History save failed: {e}")
+                
+        # Remove from queue
+        del APPROVAL_QUEUE[workflow_id]
+        
+        return {
+            "status": "approved",
+            "orders_created": len(created_orders),
+            "order_ids": created_orders,
+            "errors": errors
+        }
+    except Exception as e:
+        logger.error(f"Critical error in approve_workflow: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/workflows/approvals/{workflow_id}/reject")
+def reject_workflow(workflow_id: str):
+    """Reject a pending workflow action."""
+    if workflow_id not in APPROVAL_QUEUE:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+        
+    del APPROVAL_QUEUE[workflow_id]
+    return {"status": "rejected"}
 
 
 @app.post("/api/workflows/optimize-inventory")
@@ -510,14 +643,6 @@ async def workflow_optimize_inventory(
 ):
     """
     Run the complete supply chain optimization workflow.
-    
-    This workflow:
-    1. Analyzes inventory levels using the trained forecasting model
-    2. Checks realtime prices from Amazon API
-    3. Generates order recommendations grouped by supplier
-    
-    Returns:
-        WorkflowResult with analysis and order recommendations
     """
     from services.workflow_service import WorkflowService
     
@@ -527,6 +652,20 @@ async def workflow_optimize_inventory(
         include_all_products=include_all_products,
         auto_create_orders=auto_create_orders,
     )
+    
+    # Save to history
+    save_history({
+        "type": "optimization_workflow",
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "completed",
+        "triggered_by": "api_request",
+        "result": {
+            "products_analyzed": result.products_analyzed,
+            "orders_recommended": len(result.order_recommendations),
+            "total_value": result.total_recommended_value,
+            "auto_create_orders": auto_create_orders
+        }
+    })
     
     return result.to_dict()
 
@@ -541,13 +680,12 @@ async def workflow_optimize_inventory_stream(
 ) -> StreamingResponse:
     """
     Streaming version of the optimization workflow with real-time telemetry.
-    
-    Sends Server-Sent Events (SSE) for dashboard real-time updates.
     """
     from services.workflow_service import WorkflowService
     from services.inventory_service import InventoryService
     import asyncio
     import time
+    import uuid
     
     async def event_generator():
         start_time = time.time()
@@ -573,8 +711,17 @@ async def workflow_optimize_inventory_stream(
             
             yield f"data: {json.dumps({'event': 'products_loaded', 'count': len(products), 'max': max_products, 'timestamp': int(time.time() * 1000)})}\n\n"
             await asyncio.sleep(0.1)
+
+            # Send full list of products for UI
+            products_list = [{
+                "asin": p.asin,
+                "title": p.title,
+                "price": float(p.unit_cost or 0),
+                "stock": p.quantity_on_hand,
+            } for p in products]
+            yield f"data: {json.dumps({'event': 'products_list', 'products': products_list, 'timestamp': int(time.time() * 1000)})}\n\n"
             
-            # Run the optimized workflow
+            # Run the optimized workflow (force auto_create_orders=False so we can do HITL)
             logger.info(f"Streaming workflow: Running optimization for {len(products)} products...")
             yield f"data: {json.dumps({'event': 'analyzing', 'message': f'Analyzing {len(products)} products...', 'progress': 20, 'timestamp': int(time.time() * 1000)})}\n\n"
             
@@ -582,16 +729,47 @@ async def workflow_optimize_inventory_stream(
             result = await workflow.run_optimization_workflow(
                 forecast_days=forecast_days,
                 include_all_products=include_all_products,
-                auto_create_orders=auto_create_orders,
+                auto_create_orders=False, # Always False for streaming/HITL
                 max_products=max_products,
             )
             
             yield f"data: {json.dumps({'event': 'forecasting_complete', 'count': result.products_analyzed, 'progress': 70, 'timestamp': int(time.time() * 1000)})}\n\n"
             
+            # Generate approvals if recommendations exist
+            if result.order_recommendations and len(result.order_recommendations) > 0:
+                workflow_id = str(uuid.uuid4())
+                APPROVAL_QUEUE[workflow_id] = {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "recommendations": result.order_recommendations,
+                    "total_value": result.total_recommended_value,
+                    "params": {
+                        "forecast_days": forecast_days,
+                        "include_all": include_all_products
+                    }
+                }
+                
+                logger.info(f"Created approval request {workflow_id} for {len(result.order_recommendations)} orders")
+                yield f"data: {json.dumps({'event': 'approval_required', 'workflow_id': workflow_id, 'message': f'Approval required for {len(result.order_recommendations)} orders', 'progress': 80, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
             yield f"data: {json.dumps({'event': 'generating_orders', 'message': f'Generated {len(result.order_recommendations)} order recommendations', 'progress': 90, 'timestamp': int(time.time() * 1000)})}\n\n"
             
             # Complete event
             elapsed = round(time.time() - start_time, 2)
+            
+            # Save run to history
+            save_history({
+                "type": "optimization_workflow_run",
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "completed", 
+                "result": {
+                    "products_analyzed": result.products_analyzed,
+                    "orders_recommended": len(result.order_recommendations),
+                    "total_value": result.total_recommended_value,
+                    "elapsed_seconds": elapsed,
+                    "requires_approval": len(result.order_recommendations) > 0
+                }
+            })
+            
             yield f"data: {json.dumps({'event': 'complete', 'result': result.to_dict(), 'elapsed_seconds': elapsed, 'timestamp': int(time.time() * 1000)})}\n\n"
             
             logger.info(f"Streaming workflow complete in {elapsed}s")
