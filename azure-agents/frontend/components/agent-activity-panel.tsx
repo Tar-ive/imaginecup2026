@@ -17,7 +17,8 @@ import {
     Clock,
     CheckCircle,
     AlertCircle,
-    Loader2
+    Loader2,
+    Wrench
 } from "lucide-react"
 
 export interface AgentEvent {
@@ -76,6 +77,11 @@ const AGENT_CONFIG: Record<string, {
         color: "#9b59b6",
         label: "Manager",
     },
+    MCPToolsAgent: {
+        icon: <Wrench size={16} />,
+        color: "#f39c12",
+        label: "MCP Tools",
+    },
 }
 
 function getAgentConfig(agentName: string) {
@@ -101,6 +107,10 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                 return `Loaded ${event.count || 0} products for analysis`
             case "products_list":
                 return "Retrieved product details..."
+            case "mcp_tool_call":
+                return `🔧 Calling MCP tool: ${event.tool}`
+            case "mcp_tool_result":
+                return `✅ MCP tool result: ${event.tool}`
             case "analyzing":
                 return event.message || `Analyzing products... (${event.progress || 0}%)`
             case "forecasting_complete":
@@ -136,9 +146,14 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                     agentName = "OrchestratorAgent"
                     break
                 case "products_loaded":
+                case "products_list":
                 case "analyzing":
                 case "forecasting_complete":
                     agentName = "DemandForecastingAgent"
+                    break
+                case "mcp_tool_call":
+                case "mcp_tool_result":
+                    agentName = "MCPToolsAgent"
                     break
                 case "generating_orders":
                     agentName = "AutomatedOrderingAgent"
@@ -379,6 +394,24 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                                                                     ))}
                                                                 </tbody>
                                                             </table>
+                                                        </div>
+                                                    )}
+                                                    {/* MCP Tool Input */}
+                                                    {(event as any).input && (
+                                                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                                                            <span className="font-medium text-blue-700">Input:</span>
+                                                            <pre className="text-blue-600 whitespace-pre-wrap overflow-x-auto">
+                                                                {JSON.stringify((event as any).input, null, 2)}
+                                                            </pre>
+                                                        </div>
+                                                    )}
+                                                    {/* MCP Tool Output */}
+                                                    {(event as any).output && (
+                                                        <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                                                            <span className="font-medium text-green-700">Output:</span>
+                                                            <pre className="text-green-600 whitespace-pre-wrap overflow-x-auto">
+                                                                {JSON.stringify((event as any).output, null, 2)}
+                                                            </pre>
                                                         </div>
                                                     )}
                                                     {event.data?.delta && (

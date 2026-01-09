@@ -39,7 +39,11 @@ export function useApprovals() {
         try {
             const response = await fetch(
                 `${API_PROXY}/api/workflows/approvals/${workflowId}/approve`,
-                { method: "POST" }
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({})
+                }
             )
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
@@ -59,7 +63,11 @@ export function useApprovals() {
             // Reason is optional and not currently used by backend
             const response = await fetch(
                 `${API_PROXY}/api/workflows/approvals/${workflowId}/reject`,
-                { method: "POST" }
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reason })
+                }
             )
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
@@ -79,9 +87,9 @@ export function useApprovals() {
         fetchApprovals()
     }, [fetchApprovals])
 
-    // Poll for updates every 10 seconds when there are approvals
+    // Poll for updates every 30 seconds (reduced from 10s to prevent UI flicker)
     useEffect(() => {
-        const interval = setInterval(fetchApprovals, 10000)
+        const interval = setInterval(fetchApprovals, 30000)
         return () => clearInterval(interval)
     }, [fetchApprovals])
 

@@ -44,7 +44,7 @@ export function useSupplyChainMetrics() {
           lowStockRes,
           ordersRes
         ] = await Promise.allSettled([
-          fetch(`${API_PROXY}/products?limit=500`),
+          fetch(`${API_PROXY}/products?limit=50`),
           fetch(`${API_PROXY}/suppliers`),
           fetch(`${API_PROXY}/inventory/summary`),
           fetch(`${API_PROXY}/inventory/low-stock`),
@@ -141,8 +141,8 @@ export function useSupplyChainMetrics() {
 
     loadMetrics()
 
-    // Refresh metrics every 5 seconds
-    const interval = setInterval(loadMetrics, 5000)
+    // Refresh metrics every 30 seconds (reduced from 5s to prevent UI flicker)
+    const interval = setInterval(loadMetrics, 30000)
     return () => clearInterval(interval)
   }, [])
 

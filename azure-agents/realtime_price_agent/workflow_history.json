@@ -76,5 +76,239 @@
       "workflow_id": "784751b8-6383-4b2c-8800-ee48dc7e80c2"
     },
     "id": "f1e27e57-8f37-4968-8ca7-43f24a78a29e"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T17:57:54.009991",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 0,
+      "total_value": 0,
+      "elapsed_seconds": 4.35,
+      "requires_approval": false
+    },
+    "id": "7533a282-9311-4e33-9741-0135a0c5b27c"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T17:58:29.533323",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 3,
+      "orders_recommended": 1,
+      "total_value": 1355.08,
+      "elapsed_seconds": 4.99,
+      "requires_approval": true
+    },
+    "id": "68d56795-d279-4c2c-9201-96619df6579f"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T17:59:06.811261",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 4.45,
+      "requires_approval": true
+    },
+    "id": "bf8f9883-bb5f-4119-91b4-33e09765aaed"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:05:30.157217",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 0,
+      "total_value": 0,
+      "elapsed_seconds": 4.66,
+      "requires_approval": false
+    },
+    "id": "90329552-e1d1-41f9-b6a8-ef13f91ab770"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:05:43.446506",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 3.89,
+      "requires_approval": true
+    },
+    "id": "ef8cc802-8151-498d-836b-934fbb1c6472"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:06:05.548570",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 2,
+      "orders_recommended": 1,
+      "total_value": 783.52,
+      "elapsed_seconds": 4.76,
+      "requires_approval": true
+    },
+    "id": "ab0fe2b5-0b1b-4e63-bbd7-56b78c92649d"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:06:16.698568",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 1,
+      "total_value": 783.52,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "8ae3d485-64d1-4e1e-849a-ecdf86297896"
+    },
+    "id": "452372c3-91d4-4109-998c-95834799eaa7"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:07:14.653888",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 7,
+      "total_value": 32524.969999999994,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "f43e317d-142e-4151-b4f3-8e3ed5157df4"
+    },
+    "id": "fe91e532-5e69-4a0f-8980-3a08bd9cb815"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:07:46.116217",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 0,
+      "total_value": 0,
+      "elapsed_seconds": 3.82,
+      "requires_approval": false
+    },
+    "id": "6f9df0c7-0c35-4921-a7df-25680a953fdd"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:08:07.251750",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 4.03,
+      "requires_approval": true
+    },
+    "id": "cea2166d-0f86-4ac7-8690-64b6d3a2d1f3"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:08:32.166979",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 7,
+      "total_value": 32524.969999999994,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "5af70a39-e89a-4f25-aec4-06281ce7c6d9"
+    },
+    "id": "de979659-27c5-4eb9-80aa-22d2289894f4"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:08:34.502143",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 4.22,
+      "requires_approval": true
+    },
+    "id": "f464b574-cbb1-4fc5-98f9-b40bc4df0fe6"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:09:08.596275",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 7,
+      "total_value": 32524.969999999994,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "409cd5a2-9da5-4770-905e-2923f492c318"
+    },
+    "id": "747944b6-e3bd-4bc4-ae4e-a3d8a6ace1fd"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:10:20.567330",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 4.24,
+      "requires_approval": true
+    },
+    "id": "4b72d81f-9497-407e-9f0c-e2e376c64eea"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:10:37.193028",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 4.12,
+      "requires_approval": true
+    },
+    "id": "58d4a0f6-3388-4467-94a5-c1f470c1c936"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:11:08.428509",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 7,
+      "total_value": 32524.969999999994,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "07584827-86ab-4dbb-b2f3-b7046cbd3de1"
+    },
+    "id": "cc6ee342-7a8b-4c5b-9dcb-6de8f5415c02"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:24:03.338529",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.969999999994,
+      "elapsed_seconds": 3.89,
+      "requires_approval": true
+    },
+    "id": "e43ef172-3f13-456f-a628-a59091842294"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-09T18:24:39.012595",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 7,
+      "total_value": 32524.969999999994,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "97f91550-090b-413a-ae08-bbe6db263642"
+    },
+    "id": "deaf66b3-44ab-4985-bb14-fe2e8075bd97"
   }
 ]

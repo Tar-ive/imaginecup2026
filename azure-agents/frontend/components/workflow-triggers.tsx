@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Package,
     TrendingUp,
@@ -11,7 +14,8 @@ import {
     Search,
     BarChart3,
     Wallet,
-    LineChart
+    LineChart,
+    Settings2
 } from "lucide-react"
 
 interface WorkflowTrigger {
@@ -102,6 +106,12 @@ interface WorkflowTriggersProps {
 }
 
 export function WorkflowTriggers({ onTrigger, isRunning, activeWorkflowId }: WorkflowTriggersProps) {
+    // Control panel state
+    const [maxProducts, setMaxProducts] = useState(20)
+    const [forecastDays, setForecastDays] = useState(7)
+    const [analysisScope, setAnalysisScope] = useState<"low-stock" | "all">("low-stock")
+    const [showControls, setShowControls] = useState(false)
+
     const getCategoryColor = (category: string) => {
         switch (category) {
             case "inventory": return "#3498db"
@@ -120,6 +130,17 @@ export function WorkflowTriggers({ onTrigger, isRunning, activeWorkflowId }: Wor
         }
     }
 
+    const handleTrigger = (trigger: WorkflowTrigger) => {
+        // Merge control panel params with trigger params
+        const params = {
+            ...trigger.params,
+            max_products: maxProducts,
+            forecast_days: forecastDays,
+            include_all_products: analysisScope === "all",
+        }
+        onTrigger(trigger.id, params)
+    }
+
     const groupedTriggers = WORKFLOW_TRIGGERS.reduce((acc, trigger) => {
         if (!acc[trigger.category]) {
             acc[trigger.category] = []
@@ -130,6 +151,64 @@ export function WorkflowTriggers({ onTrigger, isRunning, activeWorkflowId }: Wor
 
     return (
         <div className="space-y-4">
+            {/* Control Panel */}
+            <div className="border rounded-lg p-3 bg-gray-50" style={{ borderColor: "#e0e0e0" }}>
+                <button
+                    onClick={() => setShowControls(!showControls)}
+                    className="flex items-center justify-between w-full text-left"
+                >
+                    <div className="flex items-center gap-2">
+                        <Settings2 size={16} style={{ color: "#7f8c8d" }} />
+                        <span className="text-sm font-medium" style={{ color: "#2c3e50" }}>
+                            Workflow Settings
+                        </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                        {maxProducts} products • {forecastDays} days
+                    </Badge>
+                </button>
+
+                {showControls && (
+                    <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t" style={{ borderColor: "#e0e0e0" }}>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-gray-500">Max Products</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={maxProducts}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaxProducts(Number(e.target.value))}
+                                className="h-8"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-gray-500">Forecast Days</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={30}
+                                value={forecastDays}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForecastDays(Number(e.target.value))}
+                                className="h-8"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-gray-500">Analysis Scope</Label>
+                            <select
+                                value={analysisScope}
+                                onChange={(e) => setAnalysisScope(e.target.value as "low-stock" | "all")}
+                                className="w-full h-8 px-2 text-sm border rounded-md"
+                                style={{ borderColor: "#e0e0e0" }}
+                            >
+                                <option value="low-stock">Low Stock Only</option>
+                                <option value="all">All Products</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Workflow Triggers */}
             {Object.entries(groupedTriggers).map(([category, triggers]) => (
                 <div key={category}>
                     <div className="flex items-center gap-2 mb-2">
@@ -154,7 +233,7 @@ export function WorkflowTriggers({ onTrigger, isRunning, activeWorkflowId }: Wor
                                         borderWidth: isActive ? 2 : 1,
                                     }}
                                     disabled={isRunning && !isActive}
-                                    onClick={() => onTrigger(trigger.id, trigger.params)}
+                                    onClick={() => handleTrigger(trigger)}
                                 >
                                     <div className="flex items-start gap-3 w-full">
                                         <div
@@ -194,3 +273,4 @@ export function WorkflowTriggers({ onTrigger, isRunning, activeWorkflowId }: Wor
         </div>
     )
 }
+
