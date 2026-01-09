@@ -24,6 +24,7 @@ backup/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 *.so
 *.egg-info/
 dist/
@@ -148,3 +149,4 @@ terraform.tfvars
 
 # Git LFS
 .gitattributes
+mcp_servers/.env

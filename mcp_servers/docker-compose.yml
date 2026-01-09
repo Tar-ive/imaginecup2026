@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  supplier-data:
+    build:
+      context: ..
+      dockerfile: mcp_servers/supplier_data/Dockerfile
+    container_name: mcp-supplier-data
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  inventory-mgmt:
+    build:
+      context: ..
+      dockerfile: mcp_servers/inventory_management/Dockerfile
+    container_name: mcp-inventory-mgmt
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  finance-data:
+    build:
+      context: ..
+      dockerfile: mcp_servers/finance_data/Dockerfile
+    container_name: mcp-finance-data
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  analytics-forecast:
+    build:
+      context: ..
+      dockerfile: mcp_servers/analytics_forecast/Dockerfile
+    container_name: mcp-analytics-forecast
+    ports:
+      - "3004:3004"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+  integrations:
+    build:
+      context: ..
+      dockerfile: mcp_servers/integrations/Dockerfile
+    container_name: mcp-integrations
+    ports:
+      - "3005:3005"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - mcp-network
+    restart: unless-stopped
+
+networks:
+  mcp-network:
+    driver: bridge
