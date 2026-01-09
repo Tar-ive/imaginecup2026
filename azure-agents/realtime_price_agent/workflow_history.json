@@ -310,5 +310,18 @@
       "workflow_id": "97f91550-090b-413a-ae08-bbe6db263642"
     },
     "id": "deaf66b3-44ab-4985-bb14-fe2e8075bd97"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-09T18:36:40.806274",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 2,
+      "orders_recommended": 1,
+      "total_value": 783.52,
+      "elapsed_seconds": 5.05,
+      "requires_approval": true
+    },
+    "id": "59d9954e-edf8-4f5f-a095-b963e3346826"
   }
 ]

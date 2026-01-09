@@ -11,7 +11,7 @@ export interface WorkflowRun {
     status: string
     triggered_by?: string
     result: {
-        products_analyzed?: number
+        products_analyzed?: number | string  // Can be "N/A" from backend
         orders_recommended?: number
         orders_created?: number
         total_value?: number

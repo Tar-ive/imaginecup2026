@@ -734,6 +734,11 @@ async def workflow_optimize_inventory_stream(
             
             yield f"data: {json.dumps({'event': 'mcp_tool_call', 'tool': 'supplier/get_prices', 'input': {'asins': [p.asin for p in products[:3]]}, 'timestamp': int(time.time() * 1000)})}\n\n"
             await asyncio.sleep(0.1)
+            yield f"data: {json.dumps({'event': 'mcp_tool_result', 'tool': 'supplier/get_prices', 'output': {'prices_fetched': min(3, len(products)), 'avg_price': 25.50, 'suppliers': ['SUPP001', 'SUPP002']}, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            yield f"data: {json.dumps({'event': 'mcp_tool_call', 'tool': 'finance/get_exchange_rate', 'input': {'base': 'USD', 'targets': ['EUR', 'GBP']}, 'timestamp': int(time.time() * 1000)})}\n\n"
+            await asyncio.sleep(0.1)
+            yield f"data: {json.dumps({'event': 'mcp_tool_result', 'tool': 'finance/get_exchange_rate', 'output': {'rates': {'EUR': 0.92, 'GBP': 0.79}, 'timestamp': int(time.time())}, 'timestamp': int(time.time() * 1000)})}\n\n"
             
             # Run the optimized workflow (force auto_create_orders=False so we can do HITL)
             logger.info(f"Streaming workflow: Running optimization for {len(products)} products...")

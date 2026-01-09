@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { OrderSummary } from "./order-summary"
 import {
     CheckCircle,
     XCircle,
@@ -37,6 +38,12 @@ export interface PendingApproval {
     created_at: string
 }
 
+interface ApprovalSuccessState {
+    ordersCreated: number
+    totalValue: number
+    orderIds: string[]
+}
+
 interface ApprovalQueueProps {
     approvals: PendingApproval[]
     onApprove: (workflowId: string) => Promise<void>
@@ -54,6 +61,7 @@ export function ApprovalQueue({
 }: ApprovalQueueProps) {
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
     const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
+    const [successState, setSuccessState] = useState<ApprovalSuccessState | null>(null)
 
     const toggleExpand = (id: string) => {
         const newExpanded = new Set(expandedItems)
@@ -65,10 +73,16 @@ export function ApprovalQueue({
         setExpandedItems(newExpanded)
     }
 
-    const handleApprove = async (workflowId: string) => {
+    const handleApprove = async (workflowId: string, approval: PendingApproval) => {
         setProcessingIds(prev => new Set(prev).add(workflowId))
         try {
             await onApprove(workflowId)
+            // Show success state with order details
+            setSuccessState({
+                ordersCreated: 1,
+                totalValue: approval.context.total || 0,
+                orderIds: [approval.context.order_id || `PO-${Date.now()}`]
+            })
         } finally {
             setProcessingIds(prev => {
                 const next = new Set(prev)
@@ -109,6 +123,34 @@ export function ApprovalQueue({
         const diffHours = Math.floor(diffMins / 60)
         if (diffHours < 24) return `${diffHours}h ago`
         return `${Math.floor(diffHours / 24)}d ago`
+    }
+
+    // Show Order Summary if we just approved something
+    if (successState) {
+        return (
+            <div className="space-y-3">
+                <OrderSummary
+                    ordersCreated={successState.ordersCreated}
+                    totalValue={successState.totalValue}
+                    orderIds={successState.orderIds}
+                    onClose={() => setSuccessState(null)}
+                    onSetRepeat={(repeat) => {
+                        // TODO: Store user preference for auto-approval
+                        console.log("User wants auto-repeat:", repeat)
+                    }}
+                />
+                {approvals.length > 0 && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSuccessState(null)}
+                        className="w-full"
+                    >
+                        View {approvals.length} more pending approval{approvals.length > 1 ? 's' : ''}
+                    </Button>
+                )}
+            </div>
+        )
     }
 
     if (approvals.length === 0) {
@@ -213,7 +255,7 @@ export function ApprovalQueue({
                                             size="sm"
                                             className="flex-1 text-white"
                                             style={{ backgroundColor: "#27ae60" }}
-                                            onClick={() => handleApprove(approval.workflow_id)}
+                                            onClick={() => handleApprove(approval.workflow_id, approval)}
                                             disabled={isProcessing}
                                         >
                                             <CheckCircle size={14} className="mr-1" />
