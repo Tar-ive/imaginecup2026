@@ -93,12 +93,14 @@ class WorkflowService:
         self.inventory_service = InventoryService(db)
         self.order_service = OrderService(db)
         self.forecaster = DemandForecasterService.get_instance()
+        self._skip_amazon_api = False  # Set to True for bulk processing
     
     async def run_optimization_workflow(
         self,
         forecast_days: int = 7,
         include_all_products: bool = False,
         auto_create_orders: bool = False,
+        max_products: int = 50,  # Limit for performance
     ) -> WorkflowResult:
         """
         Run the complete supply chain optimization workflow.
@@ -107,38 +109,62 @@ class WorkflowService:
             forecast_days: Days ahead to forecast demand
             include_all_products: If True, analyze all products; else only low-stock
             auto_create_orders: If True, actually create POs; else just recommendations
+            max_products: Maximum products to analyze (for performance)
         
         Returns:
             WorkflowResult with analysis and recommendations
         """
-        logger.info(f"Starting optimization workflow (forecast_days={forecast_days})")
+        logger.info(f"="*60)
+        logger.info(f"🚀 WORKFLOW START: forecast_days={forecast_days}, include_all={include_all_products}")
+        logger.info(f"="*60)
         
         # Step 1: Get products to analyze
+        logger.info(f"📦 Step 1: Loading products...")
         if include_all_products:
-            products = self.inventory_service.get_products(limit=500)
+            products = self.inventory_service.get_products(limit=max_products)
         else:
             products = self.inventory_service.get_low_stock_products()
+            if len(products) > max_products:
+                products = products[:max_products]
         
-        logger.info(f"Analyzing {len(products)} products")
+        logger.info(f"✓ Loaded {len(products)} products")
+        
+        # Skip Amazon API for bulk processing (too slow - 5s per product)
+        if len(products) > 10:
+            logger.info(f"⚡ Bulk mode: Skipping Amazon API calls (using DB prices)")
+            self._skip_amazon_api = True
+        else:
+            self._skip_amazon_api = False
         
         # Step 2: Analyze each product
+        logger.info(f"📊 Step 2: Analyzing {len(products)} products...")
         analysis_results: List[ProductAnalysis] = []
         
-        for product in products:
+        for i, product in enumerate(products):
+            if i % 10 == 0:
+                logger.info(f"   Analyzing product {i+1}/{len(products)}: {product.asin}")
             analysis = await self._analyze_product(product, forecast_days)
             analysis_results.append(analysis)
         
+        logger.info(f"✓ Analysis complete for {len(analysis_results)} products")
+        
         # Step 3: Filter products needing reorder
+        logger.info(f"🔍 Step 3: Filtering products needing reorder...")
         reorder_products = [a for a in analysis_results if a.needs_reorder]
+        logger.info(f"✓ Found {len(reorder_products)} products needing reorder")
         
         # Step 4: Generate order recommendations (grouped by supplier)
+        logger.info(f"📋 Step 4: Generating order recommendations...")
         order_recommendations = self._generate_order_recommendations(reorder_products)
+        logger.info(f"✓ Generated {len(order_recommendations)} supplier orders")
         
         # Step 5: Optionally create orders
         if auto_create_orders and order_recommendations:
+            logger.info(f"📝 Step 5: Creating purchase orders...")
             for rec in order_recommendations:
                 try:
                     self._create_purchase_order(rec)
+                    logger.info(f"   ✓ Created PO for {rec['supplier_name']}")
                 except Exception as e:
                     logger.error(f"Failed to create order for {rec['supplier_id']}: {e}")
         
@@ -152,10 +178,12 @@ class WorkflowService:
             analysis_details=[asdict(a) for a in analysis_results],
         )
         
+        logger.info(f"="*60)
         logger.info(
-            f"Workflow complete: {result.products_needing_reorder} products need reorder, "
+            f"✅ WORKFLOW COMPLETE: {result.products_needing_reorder} products need reorder, "
             f"${result.total_recommended_value:.2f} total value"
         )
+        logger.info(f"="*60)
         
         return result
     
@@ -167,8 +195,10 @@ class WorkflowService:
         # Get demand forecast
         forecast = self.forecaster.forecast(product.asin, forecast_days)
         
-        # Get Amazon price
-        amazon_price = self._get_amazon_price(product.asin)
+        # Get Amazon price (skip for bulk processing to avoid timeout)
+        amazon_price = None
+        if not self._skip_amazon_api:
+            amazon_price = self._get_amazon_price(product.asin)
         
         # Calculate shortfall
         current_stock = product.quantity_available or 0

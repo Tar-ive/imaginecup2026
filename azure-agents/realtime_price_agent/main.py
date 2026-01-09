@@ -486,6 +486,21 @@ def compare_prices(asin: str, db: Session = Depends(get_db)):
 # ========== WORKFLOW ENDPOINTS ==========
 
 
+@app.get("/api/workflows/pending-approvals")
+def get_pending_approvals():
+    """Get pending human-in-the-loop approval requests.
+    
+    Returns list of workflow actions awaiting human approval.
+    Currently returns empty list as HITL is not yet implemented.
+    """
+    # TODO: Implement HITL approval queue
+    return {
+        "pending": [],
+        "count": 0,
+        "message": "No pending approvals"
+    }
+
+
 @app.post("/api/workflows/optimize-inventory")
 async def workflow_optimize_inventory(
     db: Session = Depends(get_db),
@@ -522,6 +537,7 @@ async def workflow_optimize_inventory_stream(
     forecast_days: int = Query(7, description="Days ahead to forecast"),
     include_all_products: bool = Query(False, description="Analyze all products (not just low-stock)"),
     auto_create_orders: bool = Query(False, description="Actually create purchase orders"),
+    max_products: int = Query(50, description="Maximum products to analyze (for performance)"),
 ) -> StreamingResponse:
     """
     Streaming version of the optimization workflow with real-time telemetry.
@@ -530,66 +546,59 @@ async def workflow_optimize_inventory_stream(
     """
     from services.workflow_service import WorkflowService
     from services.inventory_service import InventoryService
-    from agents.demand_forecasting import DemandForecasterService
     import asyncio
+    import time
     
     async def event_generator():
+        start_time = time.time()
         try:
             # Start event
-            yield f"data: {json.dumps({'event': 'start', 'message': 'Workflow started'})}\n\n"
+            yield f"data: {json.dumps({'event': 'start', 'message': 'Workflow started', 'timestamp': int(time.time() * 1000)})}\n\n"
             await asyncio.sleep(0.1)
             
             # Initialize services
+            logger.info("Streaming workflow: Initializing services...")
             inventory_service = InventoryService(db)
-            forecaster = DemandForecasterService.get_instance()
             
-            yield f"data: {json.dumps({'event': 'init', 'message': 'Services initialized', 'model_loaded': forecaster.is_loaded})}\n\n"
+            yield f"data: {json.dumps({'event': 'init', 'message': 'Services initialized', 'timestamp': int(time.time() * 1000)})}\n\n"
             
-            # Load products
+            # Load products (limited for performance)
+            logger.info(f"Streaming workflow: Loading products (max={max_products})...")
             if include_all_products:
-                products = inventory_service.get_products(limit=500)
+                products = inventory_service.get_products(limit=max_products)
             else:
                 products = inventory_service.get_low_stock_products()
+                if len(products) > max_products:
+                    products = products[:max_products]
             
-            yield f"data: {json.dumps({'event': 'products_loaded', 'count': len(products)})}\n\n"
+            yield f"data: {json.dumps({'event': 'products_loaded', 'count': len(products), 'max': max_products, 'timestamp': int(time.time() * 1000)})}\n\n"
             await asyncio.sleep(0.1)
             
-            # Analyze each product with progress
-            analyzed = []
-            for i, product in enumerate(products):
-                progress = int(20 + (60 * (i + 1) / len(products)))
-                
-                # Get forecast
-                forecast = forecaster.forecast(product.asin, forecast_days)
-                
-                # Send progress event every 5 products
-                if i % 5 == 0 or i == len(products) - 1:
-                    yield f"data: {json.dumps({'event': 'analyzing', 'product': product.asin, 'index': i + 1, 'total': len(products), 'progress': progress})}\n\n"
-                
-                analyzed.append({
-                    'asin': product.asin,
-                    'title': product.title[:50] if product.title else '',
-                    'forecast': forecast.to_dict() if hasattr(forecast, 'to_dict') else {},
-                })
-            
-            yield f"data: {json.dumps({'event': 'forecasting_complete', 'count': len(analyzed)})}\n\n"
-            
-            # Run full workflow for results
-            yield f"data: {json.dumps({'event': 'generating_orders', 'message': 'Generating order recommendations...'})}\n\n"
+            # Run the optimized workflow
+            logger.info(f"Streaming workflow: Running optimization for {len(products)} products...")
+            yield f"data: {json.dumps({'event': 'analyzing', 'message': f'Analyzing {len(products)} products...', 'progress': 20, 'timestamp': int(time.time() * 1000)})}\n\n"
             
             workflow = WorkflowService(db)
             result = await workflow.run_optimization_workflow(
                 forecast_days=forecast_days,
                 include_all_products=include_all_products,
                 auto_create_orders=auto_create_orders,
+                max_products=max_products,
             )
             
+            yield f"data: {json.dumps({'event': 'forecasting_complete', 'count': result.products_analyzed, 'progress': 70, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            yield f"data: {json.dumps({'event': 'generating_orders', 'message': f'Generated {len(result.order_recommendations)} order recommendations', 'progress': 90, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
             # Complete event
-            yield f"data: {json.dumps({'event': 'complete', 'result': result.to_dict()})}\n\n"
+            elapsed = round(time.time() - start_time, 2)
+            yield f"data: {json.dumps({'event': 'complete', 'result': result.to_dict(), 'elapsed_seconds': elapsed, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            logger.info(f"Streaming workflow complete in {elapsed}s")
             
         except Exception as e:
             logger.error(f"Streaming workflow error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e), 'timestamp': int(time.time() * 1000)})}\n\n"
     
     return StreamingResponse(
         event_generator(),

@@ -90,9 +90,68 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
     const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
     const [showAllEvents, setShowAllEvents] = useState(false)
 
-    // Group events by agent
+    // Helper function to generate messages from workflow events
+    const getWorkflowEventMessage = (eventType: string | undefined, event: any): string => {
+        switch (eventType) {
+            case "start":
+                return "Starting workflow..."
+            case "init":
+                return "Initializing services..."
+            case "products_loaded":
+                return `Loaded ${event.count || 0} products for analysis`
+            case "analyzing":
+                return event.message || `Analyzing products... (${event.progress || 0}%)`
+            case "forecasting_complete":
+                return `Completed demand forecasting for ${event.count || 0} products`
+            case "generating_orders":
+                return event.message || "Generating order recommendations..."
+            case "complete":
+                const result = event.result
+                if (result) {
+                    return `✅ Complete: ${result.products_needing_reorder || 0} products need reorder, $${(result.total_recommended_value || 0).toFixed(2)} total`
+                }
+                return "Workflow completed"
+            case "error":
+                return event.message || "An error occurred"
+            default:
+                return event.message || eventType || "Processing..."
+        }
+    }
+
+    // Group events by agent or workflow stage
     const agentStates = events.reduce((acc, event) => {
-        const agentName = event.agent || event.data?.agent || "System"
+        // Handle workflow stream events (backend sends 'event' field: start, products_loaded, etc.)
+        const workflowEvent = (event as any).event as string | undefined
+
+        // Determine agent name - could be from agent field, data.agent, or workflow event type
+        let agentName = event.agent || event.data?.agent
+
+        // Map workflow events to pseudo-agents for display
+        if (!agentName && workflowEvent) {
+            switch (workflowEvent) {
+                case "start":
+                case "init":
+                    agentName = "OrchestratorAgent"
+                    break
+                case "products_loaded":
+                case "analyzing":
+                case "forecasting_complete":
+                    agentName = "DemandForecastingAgent"
+                    break
+                case "generating_orders":
+                    agentName = "AutomatedOrderingAgent"
+                    break
+                case "complete":
+                case "error":
+                    agentName = "OrchestratorAgent"
+                    break
+                default:
+                    agentName = "System"
+            }
+        }
+
+        agentName = agentName || "System"
+
         if (!acc[agentName]) {
             acc[agentName] = {
                 name: agentName,
@@ -100,9 +159,20 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                 events: [],
             }
         }
-        acc[agentName].events.push(event)
 
-        // Update status based on event type
+        // Transform workflow event to display format
+        const displayEvent: AgentEvent = {
+            ...event,
+            event: workflowEvent || event.event || "Unknown",
+            data: {
+                ...event.data,
+                message: event.data?.message || (event as any).message || getWorkflowEventMessage(workflowEvent, event),
+            }
+        }
+
+        acc[agentName].events.push(displayEvent)
+
+        // Update status based on event type (agent events)
         if (event.event === "AgentRun" || event.event === "AgentDelta") {
             acc[agentName].status = "active"
             acc[agentName].currentAction = event.data?.message?.slice(0, 100)
@@ -112,8 +182,23 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
             acc[agentName].status = "error"
         }
 
+        // Handle workflow stream events for status
+        if (workflowEvent) {
+            if (["start", "init", "products_loaded", "analyzing", "generating_orders"].includes(workflowEvent)) {
+                acc[agentName].status = "active"
+                acc[agentName].currentAction = getWorkflowEventMessage(workflowEvent, event)
+            } else if (workflowEvent === "complete") {
+                acc[agentName].status = "completed"
+                acc[agentName].currentAction = "Workflow completed"
+            } else if (workflowEvent === "error") {
+                acc[agentName].status = "error"
+                acc[agentName].currentAction = (event as any).message || "Error occurred"
+            }
+        }
+
         return acc
     }, {} as Record<string, AgentState>)
+
 
     const toggleAgent = (agentName: string) => {
         const newExpanded = new Set(expandedAgents)

@@ -21,12 +21,13 @@ class Settings(BaseSettings):
     azure_openai_deployment_name: str = "gpt-4o-mini"
     azure_openai_api_version: str = "2024-02-15-preview"
 
-    # MCP Server URLs
-    mcp_supplier_url: str = "http://supplier-data-server:8000"
-    mcp_inventory_url: str = "http://inventory-mgmt-server:8001"
-    mcp_finance_url: str = "http://finance-data-server:8002"
-    mcp_analytics_url: str = "http://analytics-forecast-server:8003"
-    mcp_integrations_url: str = "http://integrations-server:8004"
+    # MCP Server URLs - Default to Azure, override via env for local dev
+    # Azure deployed MCP servers (bluewave environment)
+    mcp_supplier_url: str = "https://mcp-supplier-data.bluewave-ee01b5af.eastus.azurecontainerapps.io"
+    mcp_inventory_url: str = "https://mcp-inventory-mgmt.bluewave-ee01b5af.eastus.azurecontainerapps.io"
+    mcp_finance_url: str = "https://mcp-finance-data.bluewave-ee01b5af.eastus.azurecontainerapps.io"
+    mcp_analytics_url: str = "https://mcp-analytics-forecast.bluewave-ee01b5af.eastus.azurecontainerapps.io"
+    mcp_integrations_url: str = "https://mcp-integrations.bluewave-ee01b5af.eastus.azurecontainerapps.io"
 
     # Server Configuration
     port: int = 8000
