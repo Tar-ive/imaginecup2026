@@ -1,0 +1,26 @@
+{
+    "name": "supplymind",
+    "version": "1.0.0",
+    "description": "SupplyMind - AI-powered supply chain management platform",
+    "scripts": {
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:frontend": "cd frontend && pnpm dev",
+        "dev:backend": "cd realtime_price_agent && uvicorn main:app --reload --port 8000",
+        "dev:docker": "docker-compose up --build",
+        "start": "npm run dev",
+        "test:e2e": "./scripts/test-all.sh",
+        "deploy:backend": "cd realtime_price_agent && ./deploy-to-azure.sh",
+        "deploy:mcp": "cd realtime_price_agent && ./deploy-mcp-to-azure.sh",
+        "deploy:frontend": "cd frontend && vercel --prod"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Tar-ive/imaginecup2026.git"
+    }
+}

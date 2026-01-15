@@ -1,0 +1,111 @@
+version: '3.8'
+
+# SupplyMind Full Stack Development Environment
+# This docker-compose includes: Backend API + 5 MCP Servers
+# Frontend runs separately via: cd frontend && pnpm dev
+
+services:
+  # === BACKEND API ===
+  backend:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: Dockerfile
+    container_name: supplymind-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4o}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      # MCP Server URLs - configurable via .env
+      - MCP_SUPPLIER_URL=${MCP_SUPPLIER_URL:-http://supplier-data:3001}
+      - MCP_INVENTORY_URL=${MCP_INVENTORY_URL:-http://inventory-mgmt:3002}
+      - MCP_FINANCE_URL=${MCP_FINANCE_URL:-http://finance-data:3003}
+      - MCP_ANALYTICS_URL=${MCP_ANALYTICS_URL:-http://analytics-forecast:3004}
+      - MCP_INTEGRATIONS_URL=${MCP_INTEGRATIONS_URL:-http://integrations:3005}
+    depends_on:
+      - supplier-data
+      - inventory-mgmt
+      - finance-data
+      - analytics-forecast
+      - integrations
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+  # === MCP SERVERS ===
+  supplier-data:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: mcp_servers/supplier_data/Dockerfile
+    container_name: mcp-supplier-data
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3001
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+  inventory-mgmt:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: mcp_servers/inventory_management/Dockerfile
+    container_name: mcp-inventory-mgmt
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3002
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+  finance-data:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: mcp_servers/finance_data/Dockerfile
+    container_name: mcp-finance-data
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3003
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+  analytics-forecast:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: mcp_servers/analytics_forecast/Dockerfile
+    container_name: mcp-analytics-forecast
+    ports:
+      - "3004:3004"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3004
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+  integrations:
+    build:
+      context: ./realtime_price_agent
+      dockerfile: mcp_servers/integrations/Dockerfile
+    container_name: mcp-integrations
+    ports:
+      - "3005:3005"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3005
+    networks:
+      - supplymind-network
+    restart: unless-stopped
+
+networks:
+  supplymind-network:
+    driver: bridge
