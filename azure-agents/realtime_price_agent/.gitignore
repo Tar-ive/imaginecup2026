@@ -74,8 +74,6 @@ htmlcov/
 */.ipynb_checkpoints/*
 
 # ML Models and data (use Git LFS or external storage)
-*.pkl
-*.pickle
 *.h5
 *.hdf5
 *.pth

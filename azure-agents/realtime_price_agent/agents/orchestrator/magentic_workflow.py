@@ -58,6 +58,7 @@ from agents.orchestrator.tools.tool_registry import tool_registry
 from agents.price_monitoring import create_price_monitoring_agent
 from agents.demand_forecasting import create_demand_forecasting_agent
 from agents.automated_ordering import create_automated_ordering_agent
+from agents.negotiation import create_negotiation_agent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -94,10 +95,18 @@ AVAILABLE SPECIALIZED AGENTS:
    - "Place order with Supplier A for butter"
    - "Generate orders based on current inventory levels"
 
+4. NegotiationAgent
+   Use for: Multi-supplier price negotiations, getting quotes, counter-offers
+   Examples:
+   - "Negotiate best price for 500 units of butter"
+   - "Get quotes from suppliers for flour"
+   - "Compare supplier offers and negotiate better prices"
+
 ROUTING LOGIC:
 - If query mentions: prices, suppliers, margins, cost → Delegate to PriceMonitoringAgent
 - If query mentions: forecast, predict, demand, trends → Delegate to DemandForecastingAgent
-- If query mentions: order, purchase, buy → Delegate to AutomatedOrderingAgent
+- If query mentions: order, purchase, buy (without negotiation) → Delegate to AutomatedOrderingAgent
+- If query mentions: negotiate, best price, quotes, counter-offer → Delegate to NegotiationAgent
 - If query spans multiple areas, coordinate between multiple agents in sequence
 
 Always explain which agent(s) you're delegating to and why.
@@ -231,12 +240,14 @@ class SupplyChainOrchestrator:
             price_tools = [t for t in [supplier_tool, inventory_tool, finance_tool, integrations_tool] if t]
             demand_tools = [t for t in [inventory_tool, analytics_tool, integrations_tool] if t]
             ordering_tools = [t for t in [supplier_tool, inventory_tool, finance_tool, integrations_tool] if t]
+            negotiation_tools = [t for t in [supplier_tool, inventory_tool, finance_tool] if t]
 
             logger.info("\n🏗️ Building Magentic workflow with agents...")
             logger.info("  → OrchestratorAgent (routing)")
             logger.info(f"  → PriceMonitoringAgent (tools: {len(price_tools)})")
             logger.info(f"  → DemandForecastingAgent (tools: {len(demand_tools)})")
             logger.info(f"  → AutomatedOrderingAgent (tools: {len(ordering_tools)})")
+            logger.info(f"  → NegotiationAgent (tools: {len(negotiation_tools)})")
 
             # Build workflow with correct API for this version
             workflow = (
@@ -259,6 +270,10 @@ class SupplyChainOrchestrator:
                     AutomatedOrderingAgent=create_automated_ordering_agent(
                         chat_client=self.chat_client,
                         tools=ordering_tools if ordering_tools else None,
+                    ),
+                    NegotiationAgent=create_negotiation_agent(
+                        chat_client=self.chat_client,
+                        tools=negotiation_tools if negotiation_tools else None,
                     ),
                 )
                 .with_standard_manager(
