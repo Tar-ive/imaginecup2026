@@ -1,15 +1,21 @@
 """
 Finance Data MCP Server
 ========================
-Provides MCP tools for financial calculations, cash management, and cost analysis.
+Provides MCP tools for financial calculations, cash management, cost analysis,
+and AP2 payment mandate creation.
 
-Tools:
+Existing Tools:
 - get_cash_position: Get current available cash and financial capacity
 - calculate_margin_impact: Calculate profit impact of price changes
 - get_product_cost_structure: Get detailed cost breakdown for a product
 - calculate_payment_terms_value: Calculate NPV of payment terms
 - get_accounts_payable: Get outstanding payment obligations
 - convert_currency: Convert amounts between currencies
+
+NEW AP2 Payment Tools:
+- create_payment_mandate: Create AP2 payment mandate with cryptographic signature
+- verify_payment_mandate: Verify AP2 mandate signature and validity
+- execute_payment_with_mandate: Execute payment using verified mandate
 
 Port: 3003
 Endpoint: /mcp
@@ -32,6 +38,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from database.config import get_db
 from database.models import Product, PurchaseOrder
+from services.ap2_service import AP2Service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -185,6 +192,79 @@ FINANCE_TOOLS = [
                 }
             },
             "required": ["amount", "from_currency", "to_currency"]
+        }
+    },
+    # ===== AP2 PAYMENT MANDATE TOOLS =====
+    {
+        "name": "create_payment_mandate",
+        "description": "Create AP2 payment mandate with cryptographic signature for secure agent-led payment",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID (optional, for linking)"
+                },
+                "supplier_id": {
+                    "type": "string",
+                    "description": "Supplier/merchant ID"
+                },
+                "amount": {
+                    "type": "number",
+                    "description": "Payment amount",
+                    "minimum": 0
+                },
+                "currency": {
+                    "type": "string",
+                    "default": "USD",
+                    "description": "Currency code"
+                },
+                "order_details": {
+                    "type": "object",
+                    "description": "Order line items and metadata"
+                },
+                "user_consent": {
+                    "type": "boolean",
+                    "description": "User has provided consent for this payment (REQUIRED)"
+                }
+            },
+            "required": ["supplier_id", "amount", "order_details", "user_consent"]
+        }
+    },
+    {
+        "name": "verify_payment_mandate",
+        "description": "Verify the cryptographic signature and validity of an AP2 payment mandate",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "mandate_id": {
+                    "type": "string",
+                    "description": "Payment mandate ID"
+                },
+                "merchant_authorization": {
+                    "type": "string",
+                    "description": "Merchant's signed authorization response (optional)"
+                }
+            },
+            "required": ["mandate_id"]
+        }
+    },
+    {
+        "name": "execute_payment_with_mandate",
+        "description": "Execute payment using a verified AP2 mandate",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "mandate_id": {
+                    "type": "string",
+                    "description": "Payment mandate ID"
+                },
+                "po_number": {
+                    "type": "string",
+                    "description": "Purchase order number to link"
+                }
+            },
+            "required": ["mandate_id", "po_number"]
         }
     }
 ]
@@ -453,6 +533,54 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any], db: Session) -
             "exchange_rate": round(exchange_rates[to_currency] / exchange_rates[from_currency], 4),
             "timestamp": datetime.now().isoformat()
         }
+
+    # ===== AP2 PAYMENT MANDATE TOOLS =====
+    elif tool_name == "create_payment_mandate":
+        ap2_service = AP2Service(db)
+
+        session_id = arguments.get("session_id")
+        supplier_id = arguments.get("supplier_id")
+        amount = arguments.get("amount")
+        currency = arguments.get("currency", "USD")
+        order_details = arguments.get("order_details")
+        user_consent = arguments.get("user_consent", False)
+
+        result = ap2_service.create_mandate(
+            supplier_id=supplier_id,
+            amount=amount,
+            currency=currency,
+            order_details=order_details,
+            session_id=session_id,
+            user_consent=user_consent
+        )
+
+        return result
+
+    elif tool_name == "verify_payment_mandate":
+        ap2_service = AP2Service(db)
+
+        mandate_id = arguments.get("mandate_id")
+        merchant_authorization = arguments.get("merchant_authorization")
+
+        result = ap2_service.verify_mandate(
+            mandate_id=mandate_id,
+            merchant_authorization=merchant_authorization
+        )
+
+        return result
+
+    elif tool_name == "execute_payment_with_mandate":
+        ap2_service = AP2Service(db)
+
+        mandate_id = arguments.get("mandate_id")
+        po_number = arguments.get("po_number")
+
+        result = ap2_service.execute_payment(
+            mandate_id=mandate_id,
+            po_number=po_number
+        )
+
+        return result
 
     else:
         raise ValueError(f"Unknown tool: {tool_name}")

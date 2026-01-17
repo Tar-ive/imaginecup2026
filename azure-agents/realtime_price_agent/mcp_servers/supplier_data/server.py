@@ -1,9 +1,10 @@
 """
 Supplier Data MCP Server
 =========================
-Provides MCP tools for supplier pricing, reliability, and comparison operations.
+Provides MCP tools for supplier pricing, reliability, comparison operations,
+and automated price negotiation.
 
-Tools:
+Existing Tools:
 - get_supplier_prices: Get current prices from a supplier for specific SKUs
 - fuzzy_match_product: Match SKUs across different suppliers
 - get_supplier_reliability: Get supplier quality and delivery metrics
@@ -11,6 +12,14 @@ Tools:
 - get_alternative_suppliers: Find backup suppliers for a product
 - get_supplier_payment_terms: Get payment terms for a supplier
 - get_supplier_min_order: Get minimum order quantity requirements
+
+NEW Negotiation Tools:
+- create_negotiation_session: Create a new negotiation session
+- request_supplier_quote: Request a quote from a supplier
+- submit_counter_offer: Submit a counter-offer to a supplier
+- accept_supplier_offer: Accept the current offer and close negotiation
+- get_negotiation_status: Get current status of all negotiations
+- compare_negotiation_offers: Compare and rank current offers
 
 Port: 3001
 Endpoint: /mcp
@@ -33,6 +42,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 from database.config import get_db
 from database.models import Supplier, Product
 from services.supplier_service import SupplierService
+from services.negotiation_service import NegotiationService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -204,6 +214,157 @@ SUPPLIER_TOOLS = [
                 }
             },
             "required": ["supplier_name", "sku"]
+        }
+    },
+    # ===== NEGOTIATION TOOLS =====
+    {
+        "name": "create_negotiation_session",
+        "description": "Create a new negotiation session to negotiate pricing with suppliers",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "description": "List of items to negotiate pricing for",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sku": {"type": "string", "description": "Product SKU/ASIN"},
+                            "quantity": {"type": "integer", "minimum": 1},
+                            "description": {"type": "string"}
+                        },
+                        "required": ["sku", "quantity"]
+                    }
+                },
+                "target_price": {
+                    "type": "number",
+                    "description": "Target unit price to negotiate toward (optional)"
+                },
+                "target_discount_percent": {
+                    "type": "number",
+                    "description": "Target discount percentage from current price (optional)"
+                },
+                "max_rounds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "default": 3,
+                    "description": "Maximum negotiation rounds"
+                },
+                "supplier_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of supplier IDs to negotiate with (optional, defaults to all active)"
+                }
+            },
+            "required": ["items"]
+        }
+    },
+    {
+        "name": "request_supplier_quote",
+        "description": "Request a quote from a supplier for items in a negotiation session (simulated instant response)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID"
+                },
+                "supplier_id": {
+                    "type": "string",
+                    "description": "Supplier ID to request quote from"
+                },
+                "urgency": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "default": "medium",
+                    "description": "Urgency level for supplier response"
+                }
+            },
+            "required": ["session_id", "supplier_id"]
+        }
+    },
+    {
+        "name": "submit_counter_offer",
+        "description": "Submit a counter-offer to a supplier in response to their quote (simulated response)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID"
+                },
+                "supplier_id": {
+                    "type": "string",
+                    "description": "Supplier ID to counter-offer"
+                },
+                "counter_price": {
+                    "type": "number",
+                    "description": "Counter-offer unit price",
+                    "minimum": 0
+                },
+                "justification": {
+                    "type": "string",
+                    "description": "Reason for counter-offer (e.g., 'Competitor quoted 10% less', 'Target budget constraint')"
+                }
+            },
+            "required": ["session_id", "supplier_id", "counter_price", "justification"]
+        }
+    },
+    {
+        "name": "accept_supplier_offer",
+        "description": "Accept the current offer from a supplier and close the negotiation",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID"
+                },
+                "supplier_id": {
+                    "type": "string",
+                    "description": "Supplier ID whose offer to accept"
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Optional notes about the acceptance decision"
+                }
+            },
+            "required": ["session_id", "supplier_id"]
+        }
+    },
+    {
+        "name": "get_negotiation_status",
+        "description": "Get current status and all rounds of negotiation for a session",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID"
+                }
+            },
+            "required": ["session_id"]
+        }
+    },
+    {
+        "name": "compare_negotiation_offers",
+        "description": "Compare all current offers in a negotiation session and rank suppliers",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID"
+                },
+                "criteria": {
+                    "type": "string",
+                    "enum": ["price", "quality_adjusted", "total_cost"],
+                    "default": "total_cost",
+                    "description": "Comparison criteria"
+                }
+            },
+            "required": ["session_id"]
         }
     }
 ]
@@ -485,6 +646,96 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any], db: Session) -
             "minimum_order_quantity": 10,  # Placeholder
             "unit": "units"
         }
+
+    # ===== NEGOTIATION TOOLS =====
+    elif tool_name == "create_negotiation_session":
+        negotiation_service = NegotiationService(db)
+
+        items = arguments.get("items")
+        target_price = arguments.get("target_price")
+        target_discount_percent = arguments.get("target_discount_percent")
+        max_rounds = arguments.get("max_rounds", 3)
+        supplier_ids = arguments.get("supplier_ids")
+
+        result = negotiation_service.create_session(
+            items=items,
+            target_price=target_price,
+            target_discount_percent=target_discount_percent,
+            max_rounds=max_rounds,
+            supplier_ids=supplier_ids,
+            created_by="NegotiationAgent"
+        )
+
+        return result
+
+    elif tool_name == "request_supplier_quote":
+        negotiation_service = NegotiationService(db)
+
+        session_id = arguments.get("session_id")
+        supplier_id = arguments.get("supplier_id")
+        urgency = arguments.get("urgency", "medium")
+
+        result = negotiation_service.request_quote(
+            session_id=session_id,
+            supplier_id=supplier_id,
+            urgency=urgency
+        )
+
+        return result
+
+    elif tool_name == "submit_counter_offer":
+        negotiation_service = NegotiationService(db)
+
+        session_id = arguments.get("session_id")
+        supplier_id = arguments.get("supplier_id")
+        counter_price = arguments.get("counter_price")
+        justification = arguments.get("justification")
+
+        result = negotiation_service.submit_counter(
+            session_id=session_id,
+            supplier_id=supplier_id,
+            counter_price=counter_price,
+            justification=justification
+        )
+
+        return result
+
+    elif tool_name == "accept_supplier_offer":
+        negotiation_service = NegotiationService(db)
+
+        session_id = arguments.get("session_id")
+        supplier_id = arguments.get("supplier_id")
+        notes = arguments.get("notes")
+
+        result = negotiation_service.accept_offer(
+            session_id=session_id,
+            supplier_id=supplier_id,
+            notes=notes
+        )
+
+        return result
+
+    elif tool_name == "get_negotiation_status":
+        negotiation_service = NegotiationService(db)
+
+        session_id = arguments.get("session_id")
+
+        result = negotiation_service.get_status(session_id=session_id)
+
+        return result
+
+    elif tool_name == "compare_negotiation_offers":
+        negotiation_service = NegotiationService(db)
+
+        session_id = arguments.get("session_id")
+        criteria = arguments.get("criteria", "total_cost")
+
+        result = negotiation_service.compare_offers(
+            session_id=session_id,
+            criteria=criteria
+        )
+
+        return result
 
     else:
         raise ValueError(f"Unknown tool: {tool_name}")

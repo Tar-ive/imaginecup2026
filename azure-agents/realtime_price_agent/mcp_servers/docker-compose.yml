@@ -8,6 +8,8 @@ services:
     container_name: mcp-supplier-data
     ports:
       - "3001:3001"
+    env_file:
+      - ../../.env
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:
@@ -21,6 +23,8 @@ services:
     container_name: mcp-inventory-mgmt
     ports:
       - "3002:3002"
+    env_file:
+      - ../../.env
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:
@@ -34,6 +38,8 @@ services:
     container_name: mcp-finance-data
     ports:
       - "3003:3003"
+    env_file:
+      - ../../.env
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:
@@ -47,6 +53,8 @@ services:
     container_name: mcp-analytics-forecast
     ports:
       - "3004:3004"
+    env_file:
+      - ../../.env
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:
@@ -60,6 +68,8 @@ services:
     container_name: mcp-integrations
     ports:
       - "3005:3005"
+    env_file:
+      - ../../.env
     environment:
       - DATABASE_URL=${DATABASE_URL}
     networks:

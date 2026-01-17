@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     Computed,
+    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,6 +45,13 @@ class Supplier(Base):
     on_time_delivery_rate = Column(DECIMAL(5, 2))  # e.g., 95.50
     quality_rating = Column(DECIMAL(3, 2))  # e.g., 4.75
 
+    # Negotiation Fields
+    negotiation_enabled = Column(Boolean, default=False)
+    negotiation_email = Column(String(255))
+    preferred_communication = Column(String(20), default="email")  # 'email', 'api', 'edi'
+    api_endpoint = Column(String(500))
+    last_negotiation_date = Column(DateTime)
+
     # Metadata
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -52,6 +60,9 @@ class Supplier(Base):
     # Relationships
     products = relationship("Product", back_populates="supplier")
     purchase_orders = relationship("PurchaseOrder", back_populates="supplier")
+    negotiation_sessions = relationship("NegotiationSession", back_populates="supplier", foreign_keys="NegotiationSession.winning_supplier_id")
+    negotiation_rounds = relationship("NegotiationRound", back_populates="supplier")
+    payment_mandates = relationship("PaymentMandate", back_populates="supplier")
 
     def __repr__(self):
         return f"<Supplier {self.supplier_id}: {self.supplier_name}>"
@@ -133,6 +144,10 @@ class PurchaseOrder(Base):
     # Status: pending, shipped, received, cancelled
     status = Column(String(50), nullable=False)
 
+    # Negotiation & Payment Links
+    mandate_id = Column(String(50), ForeignKey("payment_mandates.mandate_id"))
+    negotiation_session_id = Column(String(50), ForeignKey("negotiation_sessions.session_id"))
+
     # Metadata
     created_by = Column(String(100))
     created_at = Column(DateTime, server_default=func.now())
@@ -140,6 +155,8 @@ class PurchaseOrder(Base):
     # Relationships
     supplier = relationship("Supplier", back_populates="purchase_orders")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order")
+    payment_mandate = relationship("PaymentMandate", back_populates="purchase_order", foreign_keys="[PurchaseOrder.mandate_id]")
+    negotiation_session = relationship("NegotiationSession", back_populates="purchase_order", foreign_keys="[PurchaseOrder.negotiation_session_id]")
 
     @property
     def item_count(self):
@@ -193,3 +210,88 @@ class PurchaseOrderItem(Base):
 
     def __repr__(self):
         return f"<POItem {self.po_item_id}: {self.asin} x{self.quantity_ordered}>"
+
+
+class NegotiationSession(Base):
+    """Negotiation session for supplier price negotiation"""
+
+    __tablename__ = "negotiation_sessions"
+
+    session_id = Column(String(50), primary_key=True)
+    status = Column(String(20), nullable=False, default="open")  # 'open', 'completed', 'cancelled'
+    items_json = Column(Text, nullable=False)  # JSON array of {sku, quantity, description}
+    target_price = Column(DECIMAL(10, 2))  # Optional target unit price
+    max_rounds = Column(Integer, nullable=False, default=3)
+    current_round = Column(Integer, nullable=False, default=0)
+    winning_supplier_id = Column(String(50), ForeignKey("suppliers.supplier_id"))
+    final_price = Column(DECIMAL(10, 2))  # Final accepted unit price
+    total_value = Column(DECIMAL(12, 2))  # Final total order value
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    completed_at = Column(DateTime)
+    created_by = Column(String(100))  # User or agent that initiated
+
+    # Relationships
+    supplier = relationship("Supplier", back_populates="negotiation_sessions", foreign_keys=[winning_supplier_id])
+    rounds = relationship("NegotiationRound", back_populates="session")
+    payment_mandate = relationship("PaymentMandate", back_populates="negotiation_session", uselist=False)
+    purchase_order = relationship("PurchaseOrder", back_populates="negotiation_session", uselist=False)
+
+    def __repr__(self):
+        return f"<NegotiationSession {self.session_id}: {self.status}>"
+
+
+class NegotiationRound(Base):
+    """Individual negotiation round with a supplier"""
+
+    __tablename__ = "negotiation_rounds"
+
+    round_id = Column(String(50), primary_key=True)
+    session_id = Column(String(50), ForeignKey("negotiation_sessions.session_id"), nullable=False)
+    supplier_id = Column(String(50), ForeignKey("suppliers.supplier_id"), nullable=False)
+    round_number = Column(Integer, nullable=False)  # 1, 2, 3...
+    offer_type = Column(String(20), nullable=False)  # 'initial', 'counter', 'final'
+    offered_price = Column(DECIMAL(10, 2), nullable=False)  # Unit price offered by supplier
+    total_value = Column(DECIMAL(12, 2), nullable=False)  # Total order value
+    counter_price = Column(DECIMAL(10, 2))  # Our counter-offer (if any)
+    justification = Column(Text)  # Reason for counter-offer
+    status = Column(String(20), nullable=False, default="pending")  # 'pending', 'accepted', 'rejected', 'countered'
+    response_received_at = Column(DateTime)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # Relationships
+    session = relationship("NegotiationSession", back_populates="rounds")
+    supplier = relationship("Supplier", back_populates="negotiation_rounds")
+
+    def __repr__(self):
+        return f"<NegotiationRound {self.round_id}: {self.supplier_id} R{self.round_number}>"
+
+
+class PaymentMandate(Base):
+    """AP2 payment mandate with cryptographic signature"""
+
+    __tablename__ = "payment_mandates"
+
+    mandate_id = Column(String(50), primary_key=True)
+    session_id = Column(String(50), ForeignKey("negotiation_sessions.session_id"))  # Link to negotiation (optional)
+    po_number = Column(String(50))  # Link to purchase order (optional) - NOTE: No FK, PO has the FK to mandate
+    supplier_id = Column(String(50), ForeignKey("suppliers.supplier_id"), nullable=False)
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    currency = Column(String(3), nullable=False, default="USD")
+    mandate_type = Column(String(20), nullable=False)  # 'checkout', 'recurring', 'preauth'
+    signed_mandate_json = Column(Text, nullable=False)  # Full AP2 mandate (SD-JWT)
+    merchant_authorization_json = Column(Text)  # Supplier's signed response
+    signature_algorithm = Column(String(50), nullable=False)  # 'ES256', 'RS256'
+    public_key_id = Column(String(100))  # Key ID for verification
+    status = Column(String(20), nullable=False, default="created")  # 'created', 'sent', 'verified', 'executed', 'expired', 'failed'
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    expires_at = Column(DateTime, nullable=False)
+    executed_at = Column(DateTime)
+    error_message = Column(Text)
+
+    # Relationships
+    negotiation_session = relationship("NegotiationSession", back_populates="payment_mandate")
+    purchase_order = relationship("PurchaseOrder", back_populates="payment_mandate", uselist=False)
+    supplier = relationship("Supplier", back_populates="payment_mandates")
+
+    def __repr__(self):
+        return f"<PaymentMandate {self.mandate_id}: {self.status}>"

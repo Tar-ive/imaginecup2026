@@ -11,6 +11,7 @@ COPY mcp_servers/finance_data/server.py .
 
 # Copy shared modules
 COPY database /app/database
+COPY services /app/services
 
 EXPOSE 3003
 
