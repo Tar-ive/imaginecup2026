@@ -1,209 +1,175 @@
-# Supply Chain Agents
+# Getting Started with Agents Using Microsoft Foundry
 
-An AI-powered **supply chain optimization system** with demand forecasting, realtime price monitoring, and automated order recommendations. Built with [Microsoft Agent Framework](https://github.com/microsoft/agent-framework), FastAPI, and XGBoost ML models.
+The agent leverages Foundry Agent Service and utilizes file search for knowledge retrieval from uploaded files, enabling it to generate responses with citations. The solution also includes built-in monitoring capabilities with tracing to ensure easier troubleshooting and optimized performance.
+
+<div style="text-align:center;">
+
+[**SOLUTION OVERVIEW**](#solution-overview) \| [**GETTING STARTED**](#getting-started) \| [**LOCAL DEVELOPMENT**](#local-development) \| [**RESOURCE CLEAN-UP**](#resource-clean-up) \| [**GUIDANCE**](#guidance) \| [**TROUBLESHOOTING**](./docs/troubleshooting.md)
+
+</div>
+
+**Note**: With any AI solutions you create using these templates, you are responsible for assessing all associated risks, and for complying with all applicable laws and safety standards. Learn more in the transparency documents for [Agent Service](https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Fai-foundry%2Fresponsible-ai%2Fagents%2Ftransparency-note&data=05%7C02%7Chowieleung%40microsoft.com%7C42645ec29da244bd920508de2095bcad%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C638984024651276233%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=Un4HtoksTeodWPQMQp7zh8BNW6j%2BeIw4mcs6gbS4e6E%3D&reserved=0) and [Agent Framework](https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Fgithub.com%2Fmicrosoft%2Fagent-framework%2Fblob%2Fmain%2FTRANSPARENCY_FAQ.md&data=05%7C02%7Chowieleung%40microsoft.com%7C42645ec29da244bd920508de2095bcad%7C72f988bf86f141af91ab2d7cd011db47%7C1%7C0%7C638984024651325701%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=19nfzxn8ZN1qr7Hy77fn%2BgFXD1sc%2BXiuPuUi3H2NNz4%3D&reserved=0).
+
+## Solution Overview
+
+This solution deploys a web-based chat application with an AI agent running in Azure Container App.
+
+The agent leverages the Foundry Agent Service and utilizes Azure AI Search for knowledge retrieval from uploaded files, enabling it to generate responses with citations. The solution also includes built-in monitoring capabilities with tracing to ensure easier troubleshooting and optimized performance.
+
+This solution creates a Microsoft Foundry project and Foundry Tools. More details about the resources can be found in the [resources](#resources) documentation. There are options to enable logging, tracing, and monitoring.
+
+Instructions are provided for deployment through GitHub Codespaces, VS Code Dev Containers, and your local development environment.
+
+### Solution Architecture
+
+![Architecture diagram showing that user input is provided to the Azure Container App, which contains the app code. With user identity and resource access through managed identity, the input is used to form a response. The input and the Azure monitor are able to use the Azure resources deployed in the solution: Application Insights, Microsoft Foundry Project, Foundry Tools, Storage account, Azure Container App, and Log Analytics Workspace.](docs/images/architecture.png)
+
+The app code runs in an Azure Container App to process user input and generate a response to the user. It leverages Microsoft Foundry projects and Foundry Tools, including the model and agent.
+
+### Key Features
+
+- **[Knowledge Retrieval](./docs/deploy_customization.md#enabling-and-disabling-resources-provision)**<br/>
+The AI agent uses file search or Azure AI Search to retrieve knowledge from uploaded files.
+
+- **[Customizable AI Model Deployment](./docs/deploy_customization.md#customizing-model-deployments)**<br/>
+The solution allows users to configure and deploy AI models, defaulting to gpt-5-mini, with options to adjust model capacity and knowledge retrieval methods.
+
+- **[Built-in Monitoring and Tracing](./docs/observability.md#tracing-and-monitoring)**<br/>
+Integrated monitoring capabilities, including Azure Monitor and Application Insights, enable tracing and logging for easier troubleshooting and performance optimization.
+
+- **[Flexible Deployment Options](./docs/deployment.md)**<br/>
+The solution supports deployment through GitHub Codespaces, VS Code Dev Containers, or local environments, providing flexibility for different development workflows.
+
+- **[Continuous Evaluation](./docs/observability.md#continuous-evaluation)**<br/>
+Proactively monitor and assess your agent's performance over time with continuous evaluation that automatically checks real-world interactions to identify potential issues before they impact users.
+
+- **[Agent Evaluation](./docs/observability.md#agent-evaluation)**<br/>
+This solution demonstrates how you can evaluate your agent's performance and quality through Pytest.
+
+- **[AI Red Teaming Agent](./docs/observability.md#ai-red-teaming-agent)**<br/>
+Facilitates the creation of an AI Red Teaming Agent through Pytest that can run batch automated scans for safety and security on your Agent solution to check your risk posture before deploying it into production.
+
+<br/>
+
+Here is a screenshot showing the chatting web application with requests and responses between the system and the user:
+
+![Screenshot of chatting web application showing requests and responses between agent and the user.](docs/images/webapp_screenshot.png)
+
+## Getting Started
+
+| [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/get-started-with-ai-agents) | [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/Azure-Samples/get-started-with-ai-agents) |
+|---|---|
+
+1. Click `Open in GitHub Codespaces` or `Dev Containers` button above
+2. Wait for the environment to load
+3. Run the following commands in the terminal:
+   ```bash
+   azd up
+   ```
+4. Follow the prompts to select your Azure subscription and region
+5. Wait for deployment to complete (5-20 minutes) - you'll get a web app URL when finished
+
+For detailed deployment options and troubleshooting, see the [full deployment guide](./docs/deployment.md).
+**After deployment, try these [sample questions](./docs/sample_questions.md) to test your agent.**
+
+## Local Development
+
+For developers who want to run the application locally or customize the agent:
+
+- **[Local Development Guide](./docs/local_development.md)** - Set up a local development environment, customize the frontend (starting with AgentPreview.tsx), modify agent instructions and tools, and use evaluation to improve your code.
+
+This guide covers:
+- Environment setup and prerequisites
+- Running the development server locally
+- Frontend customization and backend communication
+- Agent instructions and tools modification
+- File management and agent recreation
+- Using agent evaluation for code improvement
 
 
-- [ ] Need to frame the problem we are solving better. 
+## Resource Clean-up
 
-## ✨ Features
+To prevent incurring unnecessary charges, it's important to clean up your Azure resources after completing your work with the application.
 
-| Feature | Description |
-|---------|-------------|
-| 📈 **Demand Forecasting** | XGBoost ML model trained on order history with confidence intervals |
-| 💰 **Realtime Pricing** | Live price fetching from Amazon API |
-| 📦 **Order Recommendations** | Smart reorder suggestions grouped by supplier |
-| 📊 **Live Dashboard** | Real-time telemetry with SSE streaming |
-| 🤖 **AI Agents** | Orchestrated workflow using Microsoft Agent Framework |
-| 🔄 **Human-in-the-Loop** | Optional approval for high-value orders |
+- **When to Clean Up:**
+  - After you have finished testing or demonstrating the application.
+  - If the application is no longer needed or you have transitioned to a different project or environment.
+  - When you have completed development and are ready to decommission the application.
 
-## 🚀 Quick Start
+- **Deleting Resources:**
+  To delete all associated resources and shut down the application, execute the following command:
+  
+    ```bash
+    azd down
+    ```
 
-### One-Command Setup
+    Please note that this process may take up to 20 minutes to complete.
 
-```bash
-# Clone and setup
-cd realtime_price_agent
+⚠️ Alternatively, you can delete the resource group directly from the Azure Portal to clean up resources.
 
-# Run the setup script (creates venv, installs deps, checks env)
-./scripts/setup.sh
+## Guidance
 
-# Start the server
-source venv/bin/activate
-uvicorn main:app --reload --port 8000
+### Costs
 
-# Open dashboard
-open http://localhost:8000
-```
+Pricing varies per region and usage, so it isn't possible to predict exact costs for your usage.
+The majority of the Azure resources used in this infrastructure are on usage-based pricing tiers.
 
-### Manual Setup
+You can try the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator) for the resources:
 
-```bash
-# 1. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+- **Microsoft Foundry**: Free tier. [Pricing](https://azure.microsoft.com/pricing/details/ai-studio/)  
+- **Azure Storage Account**: Standard tier, LRS. Pricing is based on storage and operations. [Pricing](https://azure.microsoft.com/pricing/details/storage/blobs/)  
+- **Foundry Tools**: S0 tier, defaults to gpt-5-mini. Pricing is based on token count. [Pricing](https://azure.microsoft.com/pricing/details/cognitive-services/)  
+- **Azure Container App**: Consumption tier with 0.5 CPU, 1GiB memory/storage. Pricing is based on resource allocation, and each month allows for a certain amount of free usage. [Pricing](https://azure.microsoft.com/pricing/details/container-apps/)  
+- **Log analytics**: Pay-as-you-go tier. Costs based on data ingested. [Pricing](https://azure.microsoft.com/pricing/details/monitor/)  
+- **Agent Evaluations**: Incurs the cost of your provided model deployment used for local evaluations.  
+- **AI Red Teaming Agent**: Leverages Azure AI Risk and Safety Evaluations to assess attack success from the automated AI red teaming scan. Users are billed based on the consumption of Risk and Safety Evaluations as listed in [our Azure pricing page](https://azure.microsoft.com/pricing/details/ai-foundry/). Click on the tab labeled “Complete AI Toolchain” to view the pricing details.
 
-# 2. Install dependencies
-pip install -e .
-pip install xgboost scikit-learn
+⚠️ To avoid unnecessary costs, remember to take down your app if it's no longer in use,
+either by deleting the resource group in the Portal or running `azd down`.
 
-# macOS only: Install OpenMP for XGBoost
-brew install libomp
+### Security guidelines
 
-# 3. Configure environment
-cp .env.sample .env
-# Edit .env with your credentials
+This template also uses [Managed Identity](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview) for local development and deployment.
 
-# 4. Run
-uvicorn main:app --reload --port 8000
-```
+To ensure continued best practices in your own repository, we recommend that anyone creating solutions based on our templates ensure that the [Github secret scanning](https://docs.github.com/code-security/secret-scanning/about-secret-scanning) setting is enabled.
 
-## ⚙️ Environment Variables
+You may want to consider additional security measures, such as:
 
-Create a `.env` file with:
+- Enabling Microsoft Defender for Cloud to [secure your Azure resources](https://learn.microsoft.com/azure/defender-for-cloud/).
+- Protecting the Azure Container Apps instance with a [firewall](https://learn.microsoft.com/azure/container-apps/waf-app-gateway) and/or [Virtual Network](https://learn.microsoft.com/azure/container-apps/networking?tabs=workload-profiles-env%2Cazure-cli).
 
-```env
-# Required: Azure OpenAI
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
-AZURE_OPENAI_API_KEY=your-api-key
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini
-AZURE_OPENAI_API_VERSION=2024-12-01-preview
+> **Important Security Notice** <br/>
+This template, the application code and configuration it contains, has been built to showcase Microsoft Azure specific services and tools. We strongly advise our customers not to make this code part of their production environments without implementing or enabling additional security features.  <br/><br/>
+For a more comprehensive list of best practices and security recommendations for Intelligent Applications, [visit our official documentation](https://learn.microsoft.com/azure/ai-foundry/).
 
-# Required: Database
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+### Resources
 
-# Optional: MCP Server URLs (for agent tools) -> Not Set up yet. 
-MCP_SUPPLIER_URL=http://localhost:3001
-MCP_INVENTORY_URL=http://localhost:3002
-MCP_FINANCE_URL=http://localhost:3003
-MCP_ANALYTICS_URL=http://localhost:3004
-MCP_INTEGRATIONS_URL=http://localhost:3005
-```
+This template creates everything you need to get started with Microsoft Foundry:
 
-## 📊 Dashboard
+| Resource | Description |
+|----------|-------------|
+| [Azure AI Project](https://learn.microsoft.com/azure/ai-studio/how-to/create-projects) | Provides a collaborative workspace for AI development with access to models, data, and compute resources |
+| [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/) | Powers the AI agents for conversational AI and intelligent search capabilities. Default models deployed are gpt-5-mini, but any Azure AI models can be specified per the [documentation](docs/deploy_customization.md#customizing-model-deployments) |
+| [Azure Container Apps](https://learn.microsoft.com/azure/container-apps/) | Hosts and scales the web application with serverless containers |
+| [Azure Container Registry](https://learn.microsoft.com/azure/container-registry/) | Stores and manages container images for secure deployment |
+| [Storage Account](https://learn.microsoft.com/azure/storage/blobs/) | Provides blob storage for application data and file uploads |
+| [AI Search Service](https://learn.microsoft.com/azure/search/) | *Optional* - Enables hybrid search capabilities combining semantic and vector search |
+| [Application Insights](https://learn.microsoft.com/azure/azure-monitor/app/app-insights-overview) | *Optional* - Provides application performance monitoring, logging, and telemetry for debugging and optimization |
+| [Log Analytics Workspace](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-workspace-overview) | *Optional* - Collects and analyzes telemetry data for monitoring and troubleshooting |
 
-Access the workflow dashboard at `http://localhost:8000/`:
+## Troubleshooting
 
-- **Telemetry Console** - Real-time logs showing workflow progress
-- **Stats Cards** - Products analyzed, reorder count, suppliers, total value
-- **Results Table** - Order recommendations grouped by supplier
-- **Progress Bar** - Live progress during workflow execution
+For solutions to common deployment, container app, and agent issues, see the [Troubleshooting Guide](./docs/troubleshooting.md).
 
-## 🔌 API Endpoints
 
-### Workflow Endpoints
+## Disclaimers
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/workflows/optimize-inventory` | Run full optimization workflow |
-| `GET` | `/api/workflows/optimize-inventory/stream` | SSE streaming version with telemetry |
-| `GET` | `/api/workflows/analyze-product/{asin}` | Analyze single product |
+To the extent that the Software includes components or code used in or derived from Microsoft products or services, including without limitation Microsoft Azure Services (collectively, “Microsoft Products and Services”), you must also comply with the Product Terms applicable to such Microsoft Products and Services. You acknowledge and agree that the license governing the Software does not grant you a license or other right to use Microsoft Products and Services. Nothing in the license or this ReadMe file will serve to supersede, amend, terminate or modify any terms in the Product Terms for any Microsoft Products and Services.
 
-### Forecasting Endpoints
+You must also comply with all domestic and international export laws and regulations that apply to the Software, which include restrictions on destinations, end users, and end use. For further information on export restrictions, visit <https://aka.ms/exporting>.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/forecast/{asin}` | Get demand forecast for product |
-| `GET` | `/api/forecast/model/info` | Get model metadata |
+You acknowledge that the Software and Microsoft Products and Services (1) are not designed, intended or made available as a medical device(s), and (2) are not designed or intended to be a substitute for professional medical advice, diagnosis, treatment, or judgment and should not be used to replace or as a substitute for professional medical advice, diagnosis, treatment, or judgment. Customer is solely responsible for displaying and/or obtaining appropriate consents, warnings, disclaimers, and acknowledgements to end users of Customer’s implementation of the Online Services.
 
-### Inventory & Orders
+You acknowledge the Software is not subject to SOC 1 and SOC 2 compliance audits. No Microsoft technology, nor any of its component technologies, including the Software, is intended or made available as a substitute for the professional advice, opinion, or judgement of a certified financial services professional. Do not use the Software to replace, substitute, or provide professional financial advice or judgment.  
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/products` | List all products |
-| `GET` | `/products/{asin}` | Get product details |
-| `GET` | `/inventory/low-stock` | Get products needing reorder |
-| `GET` | `/orders` | List purchase orders |
-| `POST` | `/prices/sync-from-amazon` | Sync prices from Amazon API |
-
-### System
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check with agent status |
-| `GET` | `/api/tools` | List available MCP tools |
-
-## 🤖 Demand Forecasting Model
-
-### Training (Google Colab)
-
-1. Upload `notebooks/demand_forecasting_training.py` to Google Colab
-2. Set `DATABASE_URL` environment variable (use Colab Secrets)
-3. Run all cells
-4. Download `demand_forecaster.pkl`
-5. Save to `agents/demand_forecasting/models/demand_forecaster.pkl`
-
-### Model Details
-
-- **Algorithm**: Hybrid XGBoost + Statistical fallback
-- **Features**: Lag features, rolling means, temporal features
-- **Output**: Predicted demand with confidence intervals
-- **Products**: 8 ML models, 229 statistical fallback
-
-## 📁 Project Structure
-
-```
-realtime_price_agent/
-├── main.py                         # FastAPI application
-├── scripts/
-│   └── setup.sh                    # One-command setup script
-├── static/
-│   └── index.html                  # Dashboard UI
-├── agents/
-│   ├── orchestrator/               # Workflow orchestration
-│   ├── demand_forecasting/         # Forecasting agent + ML model
-│   │   ├── agent.py                # Agent definition
-│   │   ├── model_service.py        # Model loading & inference
-│   │   └── models/
-│   │       └── demand_forecaster.pkl  # Trained model
-│   ├── price_monitoring/           # Price analysis agent
-│   └── automated_ordering/         # Order generation agent
-├── services/
-│   ├── workflow_service.py         # Optimization workflow
-│   ├── inventory_service.py        # Stock management
-│   ├── order_service.py            # Order CRUD
-│   └── supplier_service.py         # Supplier management
-├── database/
-│   ├── config.py                   # PostgreSQL connection
-│   └── models.py                   # SQLAlchemy models
-├── notebooks/
-│   └── demand_forecasting_training.py  # Colab training notebook
-└── docs/
-    ├── implementation_docs/
-    │   └── implementation_plan.md  # Detailed implementation guide
-    └── mcp_deploy.md               # MCP server deployment guide
-```
-
-## 🐳 Docker Deployment
-
-```bash
-# Build
-docker build -t supply-chain-agents .
-
-# Run
-docker run -p 8000:8000 --env-file .env supply-chain-agents
-```
-
-## ☁️ Azure Deployment (azd)
-
-See [Implementation Plan](docs/implementation_docs/implementation_plan.md) for detailed Azure deployment instructions including:
-
-- Azure Container Apps setup
-- MCP server deployment
-- Managed identity configuration
-- Application Insights integration
-
-```bash
-# Initialize and deploy
-azd init
-azd up
-```
-
-## 📚 References
-
-- [Microsoft Agent Framework](https://github.com/microsoft/agent-framework)
-- [Azure MCP Server](https://learn.microsoft.com/en-us/azure/developer/azure-mcp-server)
-- [Azure AI Travel Agents (Reference)](https://github.com/Azure-Samples/azure-ai-travel-agents)
-
-## 📄 License
-
-MIT License
+BY ACCESSING OR USING THE SOFTWARE, YOU ACKNOWLEDGE THAT THE SOFTWARE IS NOT DESIGNED OR INTENDED TO SUPPORT ANY USE IN WHICH A SERVICE INTERRUPTION, DEFECT, ERROR, OR OTHER FAILURE OF THE SOFTWARE COULD RESULT IN THE DEATH OR SERIOUS BODILY INJURY OF ANY PERSON OR IN PHYSICAL OR ENVIRONMENTAL DAMAGE (COLLECTIVELY, “HIGH-RISK USE”), AND THAT YOU WILL ENSURE THAT, IN THE EVENT OF ANY INTERRUPTION, DEFECT, ERROR, OR OTHER FAILURE OF THE SOFTWARE, THE SAFETY OF PEOPLE, PROPERTY, AND THE ENVIRONMENT ARE NOT REDUCED BELOW A LEVEL THAT IS REASONABLY, APPROPRIATE, AND LEGAL, WHETHER IN GENERAL OR IN A SPECIFIC INDUSTRY. BY ACCESSING THE SOFTWARE, YOU FURTHER ACKNOWLEDGE THAT YOUR HIGH-RISK USE OF THE SOFTWARE IS AT YOUR OWN RISK.

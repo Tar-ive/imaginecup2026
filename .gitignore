@@ -1,150 +1,75 @@
-# Environment variables and secrets
+# Secrets & Environment
 .env
-.env.local
-.env.*.local
-.env.development
-.env.production
-*.env
+.env.*
 
-# Azure and cloud credentials
-.azure/
-azure.conf
-azd-env/
-.azd/
-azureconfig.json
-
-# Database backups and local DBs
-*.db
-*.sqlite
-*.sqlite3
-dump.sql
-backup/
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-eggs/
-*.egg
-*.whl
-
-# Virtual environments
-venv/
+# Virtual Environments
 .venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+venv/
 
-# IDE and editors
+# External Reference Repos (LOCAL ONLY)
+azure-ai-travel-agents/
+ucp-python-sdk/
+
+# Legacy/Old files at root (LOCAL ONLY)
+agents/
+database/
+legacy/
+notebooks/
+services/
+static/
+src/
+tests/
+infra/
+.devcontainer/
+.github/
 .vscode/
+.azure/
+__pycache__/
+
+# Old root-level files (LOCAL ONLY)
+main.py
+pyproject.toml
+requirements.txt
+requirements-dev.txt
+Dockerfile
+deploy-to-azure.sh
+container-app-config.yaml
+azure.yaml
+DEPLOYMENT_GUIDE.md
+DEPLOYMENT_SUCCESS.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+SUPPORT.md
+LICENSE
+next-steps.md
+docker-compose.yaml
+.env.sample
+
+# Empty azure-agents folder after migration
+azure-agents/
+
+# IDE & System
 .idea/
 *.swp
 *.swo
-*.sublime-project
-*.sublime-workspace
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-
-# Tool caches
-.ruff_cache/
-.mypy_cache/
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.hypothesis/
-.pylintrc
-
-# AI assistants
-.claude-flow/
-.claude/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
-
-# ML Models and data (use Git LFS or external storage)
-*.pkl
-*.pickle
-*.h5
-*.hdf5
-*.pth
-*.pt
-*.ckpt
-*.safetensors
-*.bin
-*.onnx
-models/*.pkl
-models/*.pth
-*.model
-
-# Large data files
-*.csv.gz
-*.parquet
-*.feather
-data/raw/
-data/processed/
-datasets/
-
-# Logs and temporary files
-logs/
-*.log
-*.log.*
-*.tmp
-*.temp
-.cache/
-tmp/
-
-# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+
+# Dependencies & Cache
+node_modules/
+*.pyc
+*.pyo
+*.egg-info/
+supply_chain_agents.egg-info/
 
 # Build artifacts
-supply_chain_agents.egg-info/
-*.egg-info/
-.eggs/
+.next/
+dist/
+build/
 
-# Docker
-.dockerignore
-docker-compose.override.yml
-
-# Secrets and credentials
-secrets/
-credentials/
-*.key
-*.pem
-*.crt
-*.cer
-*.p12
-*.pfx
-service-account*.json
-
-# Local development
-.local/
-local_settings.py
-instance/
-
-# Terraform and IaC
-*.tfstate
-*.tfstate.*
-.terraform/
-terraform.tfvars
-
-# Git LFS
-.gitattributes
+# Logs & Database
+*.log
+logs/
+*.db
+*.db-shm
+*.db-wal
