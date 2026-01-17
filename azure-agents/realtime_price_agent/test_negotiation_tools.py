@@ -185,8 +185,8 @@ def test_negotiation_workflow():
     # Step 2: Request Quotes from Multiple Suppliers
     print_test("Request Quotes from Suppliers")
 
-    # Simulate requesting quotes from 3 suppliers
-    test_suppliers = ["SUP-001", "SUP-002", "SUP-003"]
+    # Simulate requesting quotes from 3 suppliers (using actual supplier IDs from database)
+    test_suppliers = ["TECH-001", "TECH-002", "HOME-001"]
     quotes = {}
 
     for supplier_id in test_suppliers:

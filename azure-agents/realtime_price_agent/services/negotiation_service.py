@@ -86,8 +86,8 @@ class NegotiationService:
         if not supplier:
             raise ValueError(f"Supplier {supplier_id} not found")
 
-        # Get session items
-        items = json.loads(session.items_json)
+        # Get session items (handle both TEXT/JSONB column types)
+        items = session.items_json if isinstance(session.items_json, list) else json.loads(session.items_json)
         sku = items[0]["sku"]
         quantity = items[0]["quantity"]
 
@@ -193,8 +193,8 @@ class NegotiationService:
             new_offered_price = round(their_price * 0.97, 2)  # 3% off
             response_status = "countered"
 
-        # Get session items for total value
-        items = json.loads(session.items_json)
+        # Get session items for total value (handle both TEXT/JSONB column types)
+        items = session.items_json if isinstance(session.items_json, list) else json.loads(session.items_json)
         quantity = items[0]["quantity"]
         new_total_value = round(new_offered_price * quantity, 2)
 
@@ -272,7 +272,7 @@ class NegotiationService:
             "winning_supplier_id": supplier_id,
             "final_price": float(session.final_price),
             "total_value": float(session.total_value),
-            "items": json.loads(session.items_json),
+            "items": session.items_json if isinstance(session.items_json, list) else json.loads(session.items_json),
             "target_price": float(session.target_price) if session.target_price else None,
             "rounds_completed": session.current_round,
             "notes": notes,
@@ -312,7 +312,7 @@ class NegotiationService:
         return {
             "session_id": session_id,
             "status": session.status,
-            "items": json.loads(session.items_json),
+            "items": session.items_json if isinstance(session.items_json, list) else json.loads(session.items_json),
             "target_price": float(session.target_price) if session.target_price else None,
             "max_rounds": session.max_rounds,
             "current_round": session.current_round,

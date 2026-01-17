@@ -23,6 +23,7 @@ Endpoint: /mcp
 
 import os
 import sys
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
@@ -296,7 +297,7 @@ async def mcp_endpoint(request: MCPRequest, db: Session = Depends(get_db)):
             return MCPCallToolResponse(
                 content=[{
                     "type": "text",
-                    "text": str(result)
+                    "text": json.dumps(result, default=str)
                 }],
                 isError=False
             )

@@ -33,6 +33,7 @@ dependencies = [
     # Demand forecasting ML dependencies
     "xgboost>=2.0.0",
     "scikit-learn>=1.4.0",
+    colorama>=0.4.6,
 ]
 
 [project.optional-dependencies]
