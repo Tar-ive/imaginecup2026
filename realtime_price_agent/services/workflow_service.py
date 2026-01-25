@@ -27,7 +27,8 @@ from agents.demand_forecasting import DemandForecasterService, DemandForecast
 logger = logging.getLogger(__name__)
 
 # Amazon API endpoint
-AMAZON_API_URL = "https://amazon-api-app.purplepebble-8d2a2163.eastus.azurecontainerapps.io/products"
+# Mock Amazon API (Container was deleted)
+AMAZON_API_URL = "MOCK_MODE"
 
 
 @dataclass
@@ -253,22 +254,15 @@ class WorkflowService:
         )
     
     def _get_amazon_price(self, asin: str) -> Optional[float]:
-        """Get current price from Amazon API."""
+        """Get current price from Amazon API (Mocked)."""
+        # Mock implementation since container was deleted
+        import random
         try:
-            response = requests.get(
-                AMAZON_API_URL,
-                params={"query": asin, "limit": 1},
-                timeout=5
-            )
-            response.raise_for_status()
-            products = response.json()
-            
-            if products and len(products) > 0:
-                price = products[0].get("initial_price")
-                if price and isinstance(price, (int, float)):
-                    return float(price)
+            # Generate a realistic-looking price based on ASIN hash or random
+            base_price = 20.0 + (hash(asin) % 1000) / 10.0
+            return round(base_price, 2)
         except Exception as e:
-            logger.debug(f"Failed to get Amazon price for {asin}: {e}")
+            logger.debug(f"Failed to get mock Amazon price for {asin}: {e}")
         
         return None
     

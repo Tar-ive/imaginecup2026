@@ -367,18 +367,30 @@ def sync_prices_from_amazon(
     import requests
     from datetime import datetime
 
-    # Fetch live data from Amazon API
-    api_url = f"https://amazon-api-app.purplepebble-8d2a2163.eastus.azurecontainerapps.io/products"
-    params = {"query": query, "limit": limit}
-
-    try:
-        response = requests.get(api_url, params=params, timeout=30)
-        response.raise_for_status()
-        amazon_products = response.json()
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch from Amazon API: {str(e)}"
-        )
+    # Mock implementation
+    import random
+    
+    # Mock data generation
+    amazon_products = []
+    
+    # Look up products to simulate "live" data
+    db_products = []
+    if query:
+        # Simple simulation: just get some products from DB to update
+        from database.models import Product
+        db_products = db.query(Product).filter(Product.title.ilike(f"%{query}%")).limit(limit).all()
+        
+    for p in db_products:
+        # Simulate a price slightly different from market price
+        current_price = float(p.market_price) if p.market_price else 100.0
+        mock_price = current_price * random.uniform(0.9, 1.1)
+        
+        amazon_products.append({
+            "asin": p.asin,
+            "title": p.title,
+            "initial_price": round(mock_price, 2),
+            "timestamp": datetime.utcnow().isoformat()
+        })
 
     # Update database prices
     updated_count = 0
@@ -413,28 +425,29 @@ def get_live_amazon_price(asin: str):
     import requests
 
     try:
-        api_url = f"https://amazon-api-app.purplepebble-8d2a2163.eastus.azurecontainerapps.io/products"
-        params = {"query": asin, "limit": 1}
+    try:
+        # MOCK IMPLEMENTATION
+        import random
+        from datetime import datetime
+        
+        # Determine if ASIN exists (conceptually)
+        if len(asin) < 5:
+             raise HTTPException(status_code=404, detail="Product not found on Amazon")
+             
+        # Generate mock price
+        mock_price = 20.0 + (hash(asin) % 1000) / 10.0
+        
+        return {
+            "asin": asin,
+            "title": f"Mock Product {asin}",
+            "seller_name": "Mock Amazon Seller",
+            "brand": "Mock Brand",
+            "initial_price": round(mock_price, 2),
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": "mock_amazon_api",
+        }
 
-        response = requests.get(api_url, params=params, timeout=10)
-        response.raise_for_status()
-        amazon_products = response.json()
-
-        if amazon_products:
-            product = amazon_products[0]
-            return {
-                "asin": product.get("asin"),
-                "title": product.get("title"),
-                "seller_name": product.get("seller_name"),
-                "brand": product.get("brand"),
-                "initial_price": product.get("initial_price"),
-                "timestamp": product.get("timestamp"),
-                "source": "live_amazon_api",
-            }
-        else:
-            raise HTTPException(status_code=404, detail="Product not found on Amazon")
-
-    except requests.RequestException as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"Amazon API error: {str(e)}")
 
 
@@ -449,19 +462,10 @@ def compare_prices(asin: str, db: Session = Depends(get_db)):
 
     # Get live Amazon price
     try:
-        api_url = f"https://amazon-api-app.purplepebble-8d2a2163.eastus.azurecontainerapps.io/products"
-        params = {"query": asin, "limit": 1}
-
-        response = requests.get(api_url, params=params, timeout=10)
-        response.raise_for_status()
-        amazon_products = response.json()
-
-        amazon_price = None
-        if amazon_products:
-            amazon_price = amazon_products[0].get("initial_price")
-            if amazon_price:
-                amazon_price = float(amazon_price)
-
+        # MOCK IMPLEMENTATION
+        # Generate mock price
+        amazon_price = 20.0 + (hash(asin) % 1000) / 10.0
+        amazon_price = round(amazon_price, 2)
     except Exception:
         amazon_price = None
 
