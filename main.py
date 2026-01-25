@@ -12,15 +12,15 @@ from pydantic import BaseModel
 from pathlib import Path
 
 # Database imports (now at root level)
-from database.config import get_db, test_connection
-from database.models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
-from services.inventory_service import InventoryService
-from services.supplier_service import SupplierService
-from services.order_service import OrderService
+from realtime_price_agent.database.config import get_db, test_connection
+from realtime_price_agent.database.models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
+from realtime_price_agent.services.inventory_service import InventoryService
+from realtime_price_agent.services.supplier_service import SupplierService
+from realtime_price_agent.services.order_service import OrderService
 
 # Agent imports
-from agents.orchestrator.magentic_workflow import magentic_orchestrator
-from agents.orchestrator.tools.tool_registry import tool_registry
+from realtime_price_agent.agents.orchestrator.magentic_workflow import magentic_orchestrator
+from realtime_price_agent.agents.orchestrator.tools.tool_registry import tool_registry
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +377,7 @@ def sync_prices_from_amazon(
     db_products = []
     if query:
         # Simple simulation: just get some products from DB to update
-        from database.models import Product
+        from realtime_price_agent.database.models import Product
         db_products = db.query(Product).filter(Product.title.ilike(f"%{query}%")).limit(limit).all()
         
     for p in db_products:
