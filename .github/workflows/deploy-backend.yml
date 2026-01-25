@@ -64,12 +64,13 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            cd realtime_price_agent
             az acr build \
               --registry ${{ env.ACR_NAME }} \
               --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
               --image ${{ env.IMAGE_NAME }}:latest \
-              --file realtime_price_agent/Dockerfile \
-              realtime_price_agent
+              --file Dockerfile \
+              .
 
       - name: Deploy to Container App
         uses: azure/container-apps-deploy-action@v1
