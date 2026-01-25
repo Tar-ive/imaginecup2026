@@ -1,0 +1,93 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'realtime_price_agent/**'
+      - 'main.py'
+      - 'database/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+  workflow_call:
+
+env:
+  ACR_NAME: imaginecupreg999
+  RESOURCE_GROUP: ImagineCup
+  APP_NAME: supplymind-backend
+  IMAGE_NAME: supply-chain-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Fetch MCP Service URLs
+        id: mcp-urls
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            echo "Fetching MCP URLs..."
+            
+            # Helper function to get FQDN
+            get_fqdn() {
+              az containerapp show \
+                --name $1 \
+                --resource-group ${{ env.RESOURCE_GROUP }} \
+                --query properties.configuration.ingress.fqdn \
+                -o tsv 2>/dev/null || echo "not_found"
+            }
+
+            SUPPLIER_URL=$(get_fqdn "mcp-supplier-data")
+            INVENTORY_URL=$(get_fqdn "mcp-inventory-mgmt")
+            FINANCE_URL=$(get_fqdn "mcp-finance-data")
+            ANALYTICS_URL=$(get_fqdn "mcp-analytics-forecast")
+            INTEGRATIONS_URL=$(get_fqdn "mcp-integrations")
+            
+            echo "MCP_SUPPLIER_DATA_URL=https://$SUPPLIER_URL" >> $GITHUB_OUTPUT
+            echo "MCP_INVENTORY_MGMT_URL=https://$INVENTORY_URL" >> $GITHUB_OUTPUT
+            echo "MCP_FINANCE_DATA_URL=https://$FINANCE_URL" >> $GITHUB_OUTPUT
+            echo "MCP_ANALYTICS_FORECAST_URL=https://$ANALYTICS_URL" >> $GITHUB_OUTPUT
+            echo "MCP_INTEGRATIONS_URL=https://$INTEGRATIONS_URL" >> $GITHUB_OUTPUT
+            
+            echo "URLs fetched:"
+            echo "Supplier: https://$SUPPLIER_URL"
+
+      - name: Build and Push to ACR
+        uses: azure/acr-build@v1
+        with:
+          service_principal: ${{ secrets.AZURE_CREDENTIALS }}
+          registry: ${{ env.ACR_NAME }}
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ github.sha }} latest
+          dockerfile: realtime_price_agent/Dockerfile
+          context: realtime_price_agent
+
+      - name: Deploy to Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          registryUrl: ${{ env.ACR_NAME }}.azurecr.io
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          targetPort: 8000
+          ingress: external
+          containerAppName: ${{ env.APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          environmentVariables: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+            AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
+            AZURE_OPENAI_DEPLOYMENT_NAME=${{ secrets.AZURE_OPENAI_DEPLOYMENT_NAME }}
+            AZURE_OPENAI_API_VERSION=${{ secrets.AZURE_OPENAI_API_VERSION }}
+            MCP_SUPPLIER_DATA_URL=${{ steps.mcp-urls.outputs.MCP_SUPPLIER_DATA_URL }}
+            MCP_INVENTORY_MGMT_URL=${{ steps.mcp-urls.outputs.MCP_INVENTORY_MGMT_URL }}
+            MCP_FINANCE_DATA_URL=${{ steps.mcp-urls.outputs.MCP_FINANCE_DATA_URL }}
+            MCP_ANALYTICS_FORECAST_URL=${{ steps.mcp-urls.outputs.MCP_ANALYTICS_FORECAST_URL }}
+            MCP_INTEGRATIONS_URL=${{ steps.mcp-urls.outputs.MCP_INTEGRATIONS_URL }}
+            PORT=8000

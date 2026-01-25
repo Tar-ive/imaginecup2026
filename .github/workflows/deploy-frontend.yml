@@ -1,0 +1,67 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+  workflow_call:
+
+env:
+  ACR_NAME: imaginecupreg999
+  RESOURCE_GROUP: ImagineCup
+  APP_NAME: supplymind-frontend
+  BACKEND_APP_NAME: supplymind-backend
+  IMAGE_NAME: supplymind-frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Backend URL
+        id: get-backend-url
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            BACKEND_FQDN=$(az containerapp show \
+              --name ${{ env.BACKEND_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --query properties.configuration.ingress.fqdn \
+              -o tsv)
+            echo "BACKEND_URL=https://$BACKEND_FQDN" >> $GITHUB_OUTPUT
+
+      - name: Build and Push to ACR
+        uses: azure/acr-build@v1
+        with:
+          service_principal: ${{ secrets.AZURE_CREDENTIALS }}
+          registry: ${{ env.ACR_NAME }}
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ github.sha }} latest
+          dockerfile: frontend/Dockerfile
+          context: frontend
+          build_args: |
+            NEXT_PUBLIC_API_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
+            NODE_ENV=production
+
+      - name: Deploy to Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          registryUrl: ${{ env.ACR_NAME }}.azurecr.io
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          targetPort: 3000
+          ingress: external
+          containerAppName: ${{ env.APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          environmentVariables: |
+            NEXT_PUBLIC_API_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
+            NODE_ENV=production

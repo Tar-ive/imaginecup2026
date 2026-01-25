@@ -1,0 +1,14 @@
+name: Deploy All
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    uses: ./.github/workflows/deploy-backend.yml
+    secrets: inherit
+
+  deploy-frontend:
+    needs: deploy-backend
+    uses: ./.github/workflows/deploy-frontend.yml
+    secrets: inherit
