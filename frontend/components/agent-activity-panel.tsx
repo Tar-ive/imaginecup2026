@@ -18,7 +18,8 @@ import {
     CheckCircle,
     AlertCircle,
     Loader2,
-    Wrench
+    Wrench,
+    Users
 } from "lucide-react"
 
 export interface AgentEvent {
@@ -82,6 +83,11 @@ const AGENT_CONFIG: Record<string, {
         color: "#f39c12",
         label: "MCP Tools",
     },
+    NegotiationAgent: {
+        icon: <Users size={16} />,
+        color: "#9b59b6",
+        label: "Negotiator",
+    },
 }
 
 function getAgentConfig(agentName: string) {
@@ -122,9 +128,26 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                 if (result) {
                     return `✅ Complete: ${result.products_needing_reorder || 0} products need reorder, $${(result.total_recommended_value || 0).toFixed(2)} total`
                 }
-                return "Workflow completed"
+                return event.awaiting === "human_approval"
+                    ? "✅ Negotiation complete - awaiting approval"
+                    : "Workflow completed"
             case "error":
                 return event.message || "An error occurred"
+            // Negotiation events
+            case "negotiation_created":
+                return `📋 Negotiation session ${event.session_id} created for ${event.products} products`
+            case "round":
+                return `🔄 Round ${event.number}: ${event.type === 'quote_request' ? 'Requesting quotes' : event.type === 'final' ? 'Final negotiation' : 'Counter offer'}`
+            case "email_sent":
+                return `📤 Email sent to ${event.to}: ${event.subject}`
+            case "email_received":
+                return `📥 Response received: $${event.offer}${event.final ? ' (final offer)' : ''}`
+            case "offers_compared":
+                return `📊 Best offer from ${event.best_supplier}: $${event.best_price} (${event.savings} savings)`
+            case "ap2_mandate_preview":
+                return `🔐 AP2 Mandate: ${event.schema?.mandate_id} for $${event.schema?.amount}`
+            case "pending_approval":
+                return `⏳ Awaiting approval for session ${event.session_id}`
             default:
                 return event.message || eventType || "Processing..."
         }
@@ -151,12 +174,24 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                 case "forecasting_complete":
                     agentName = "DemandForecastingAgent"
                     break
+                case "mcp_call":
+                case "mcp_result":
                 case "mcp_tool_call":
                 case "mcp_tool_result":
                     agentName = "MCPToolsAgent"
                     break
                 case "generating_orders":
                     agentName = "AutomatedOrderingAgent"
+                    break
+                // Negotiation workflow events
+                case "negotiation_created":
+                case "round":
+                case "email_sent":
+                case "email_received":
+                case "offers_compared":
+                case "ap2_mandate_preview":
+                case "pending_approval":
+                    agentName = "NegotiationAgent"
                     break
                 case "complete":
                 case "error":
@@ -201,12 +236,20 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
 
         // Handle workflow stream events for status
         if (workflowEvent) {
-            if (["start", "init", "products_loaded", "analyzing", "generating_orders"].includes(workflowEvent)) {
+            if ([
+                "start", "init", "products_loaded", "analyzing", "generating_orders",
+                // Negotiation events that show as active
+                "negotiation_created", "round", "email_sent", "email_received",
+                "offers_compared", "mcp_call", "mcp_result"
+            ].includes(workflowEvent)) {
                 acc[agentName].status = "active"
+                acc[agentName].currentAction = getWorkflowEventMessage(workflowEvent, event)
+            } else if (workflowEvent === "pending_approval" || workflowEvent === "ap2_mandate_preview") {
+                acc[agentName].status = "awaiting_approval"
                 acc[agentName].currentAction = getWorkflowEventMessage(workflowEvent, event)
             } else if (workflowEvent === "complete") {
                 acc[agentName].status = "completed"
-                acc[agentName].currentAction = "Workflow completed"
+                acc[agentName].currentAction = getWorkflowEventMessage(workflowEvent, event)
             } else if (workflowEvent === "error") {
                 acc[agentName].status = "error"
                 acc[agentName].currentAction = (event as any).message || "Error occurred"
@@ -350,77 +393,96 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                             {/* Expanded Event Log */}
                             {isExpanded && (
                                 <div className="border-t" style={{ borderColor: "#e0e0e0" }}>
-                                    <ScrollArea className="max-h-[200px]">
+                                    <ScrollArea className="h-[200px] overflow-auto">
                                         <div className="p-2 space-y-1">
-                                            {agent.events.slice(-20).map((event, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="text-xs p-2 rounded"
-                                                    style={{ backgroundColor: "#f8f9fa" }}
-                                                >
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-medium" style={{ color: config.color }}>
-                                                            {event.event}
-                                                        </span>
-                                                        <span className="text-gray-400">
-                                                            {new Date(event.timestamp).toLocaleTimeString()}
-                                                        </span>
-                                                    </div>
-                                                    {event.data?.message && (
+                                            {agent.events.slice(-20).map((event, idx) => {
+                                                const rawEvent = event as any
+                                                const message = event.data?.message || getWorkflowEventMessage(rawEvent.event, rawEvent)
+
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className="text-xs p-2 rounded"
+                                                        style={{ backgroundColor: "#f8f9fa" }}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="font-medium" style={{ color: config.color }}>
+                                                                {event.event}
+                                                            </span>
+                                                            <span className="text-gray-400">
+                                                                {new Date(event.timestamp).toLocaleTimeString()}
+                                                            </span>
+                                                        </div>
+                                                        {/* Always show message */}
                                                         <p className="text-gray-600 whitespace-pre-wrap break-words">
-                                                            {event.data.message.slice(0, 500)}
-                                                            {event.data.message.length > 500 ? "..." : ""}
+                                                            {message}
                                                         </p>
-                                                    )}
-                                                    {(event as any).products && (
-                                                        <div className="mt-2 text-xs overflow-x-auto">
-                                                            <table className="min-w-full border-collapse">
-                                                                <thead>
-                                                                    <tr className="bg-gray-100">
-                                                                        <th className="p-1 border text-left">ASIN</th>
-                                                                        <th className="p-1 border text-left">Title</th>
-                                                                        <th className="p-1 border text-right">Price</th>
-                                                                        <th className="p-1 border text-right">Stock</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {(event as any).products.map((p: any, i: number) => (
-                                                                        <tr key={i} className="border-t">
-                                                                            <td className="p-1 border text-gray-600">{p.asin}</td>
-                                                                            <td className="p-1 border text-gray-800 truncate max-w-[150px]">{p.title}</td>
-                                                                            <td className="p-1 border text-right text-green-600">${p.price?.toFixed(2)}</td>
-                                                                            <td className="p-1 border text-right">{p.stock}</td>
+                                                        {/* Negotiation-specific details */}
+                                                        {rawEvent.offer && (
+                                                            <div className="mt-1 text-green-600 font-medium">
+                                                                💰 Offer: ${rawEvent.offer}
+                                                            </div>
+                                                        )}
+                                                        {rawEvent.savings && (
+                                                            <div className="mt-1 text-blue-600">
+                                                                📈 Savings: {rawEvent.savings}
+                                                            </div>
+                                                        )}
+                                                        {rawEvent.schema && (
+                                                            <div className="mt-1 p-1 bg-purple-50 rounded text-purple-700">
+                                                                Mandate: {rawEvent.schema.mandate_id} | ${rawEvent.schema.amount}
+                                                            </div>
+                                                        )}
+                                                        {Array.isArray((event as any).products) && (event as any).products.length > 0 && (
+                                                            <div className="mt-2 text-xs overflow-x-auto">
+                                                                <table className="min-w-full border-collapse">
+                                                                    <thead>
+                                                                        <tr className="bg-gray-100">
+                                                                            <th className="p-1 border text-left">ASIN</th>
+                                                                            <th className="p-1 border text-left">Title</th>
+                                                                            <th className="p-1 border text-right">Price</th>
+                                                                            <th className="p-1 border text-right">Stock</th>
                                                                         </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    )}
-                                                    {/* MCP Tool Input */}
-                                                    {(event as any).input && (
-                                                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                                                            <span className="font-medium text-blue-700">Input:</span>
-                                                            <pre className="text-blue-600 whitespace-pre-wrap overflow-x-auto">
-                                                                {JSON.stringify((event as any).input, null, 2)}
-                                                            </pre>
-                                                        </div>
-                                                    )}
-                                                    {/* MCP Tool Output */}
-                                                    {(event as any).output && (
-                                                        <div className="mt-2 p-2 bg-green-50 rounded text-xs">
-                                                            <span className="font-medium text-green-700">Output:</span>
-                                                            <pre className="text-green-600 whitespace-pre-wrap overflow-x-auto">
-                                                                {JSON.stringify((event as any).output, null, 2)}
-                                                            </pre>
-                                                        </div>
-                                                    )}
-                                                    {event.data?.delta && (
-                                                        <p className="text-gray-600">
-                                                            {event.data.delta}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {(event as any).products.map((p: any, i: number) => (
+                                                                            <tr key={i} className="border-t">
+                                                                                <td className="p-1 border text-gray-600">{p.asin}</td>
+                                                                                <td className="p-1 border text-gray-800 truncate max-w-[150px]">{p.title}</td>
+                                                                                <td className="p-1 border text-right text-green-600">${p.price?.toFixed(2)}</td>
+                                                                                <td className="p-1 border text-right">{p.stock}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        )}
+                                                        {/* MCP Tool Input */}
+                                                        {(event as any).input && (
+                                                            <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                                                                <span className="font-medium text-blue-700">Input:</span>
+                                                                <pre className="text-blue-600 whitespace-pre-wrap overflow-x-auto">
+                                                                    {JSON.stringify((event as any).input, null, 2)}
+                                                                </pre>
+                                                            </div>
+                                                        )}
+                                                        {/* MCP Tool Output */}
+                                                        {(event as any).output && (
+                                                            <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                                                                <span className="font-medium text-green-700">Output:</span>
+                                                                <pre className="text-green-600 whitespace-pre-wrap overflow-x-auto">
+                                                                    {JSON.stringify((event as any).output, null, 2)}
+                                                                </pre>
+                                                            </div>
+                                                        )}
+                                                        {event.data?.delta && (
+                                                            <p className="text-gray-600">
+                                                                {event.data.delta}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     </ScrollArea>
                                 </div>
@@ -436,7 +498,7 @@ export function AgentActivityPanel({ events, isActive }: AgentActivityPanelProps
                     <p className="text-xs font-semibold mb-2" style={{ color: "#7f8c8d" }}>
                         RAW EVENTS ({events.length})
                     </p>
-                    <ScrollArea className="h-[200px] border rounded p-2" style={{ borderColor: "#e0e0e0" }}>
+                    <ScrollArea className="h-[200px] overflow-auto border rounded p-2" style={{ borderColor: "#e0e0e0" }}>
                         <pre className="text-xs text-gray-600 whitespace-pre-wrap">
                             {JSON.stringify(events.slice(-50), null, 2)}
                         </pre>

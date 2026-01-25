@@ -70,6 +70,10 @@ export function WorkflowEngineCard() {
         // For now, they all route to the optimization workflow
         // TODO: Implement specific endpoints for each workflow type
         break
+      case "supplier-negotiation":
+        url = "/api/proxy-stream/api/workflows/negotiate/stream"
+        queryParams.set("max_rounds", params?.max_rounds || "3")
+        break
     }
 
     const queryString = queryParams.toString()

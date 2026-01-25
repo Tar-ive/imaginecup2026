@@ -13,8 +13,12 @@ interface RadarProps {
 }
 
 export function SupplyChainRadar({ data }: RadarProps) {
+  // Convert inventoryTurnover ratio (typically 1-10) to a 0-100 scale
+  // A turnover of 5 is considered good (maps to ~75%), 10 is excellent (100%)
+  const normalizedTurnover = Math.min(100, ((data?.inventoryTurnover || 4.2) / 8) * 100)
+
   const radarData = [
-    { name: "Inventory Turnover", value: data?.inventoryTurnover || 75 },
+    { name: "Inventory Turnover", value: Math.round(normalizedTurnover) },
     { name: "Demand Accuracy", value: data?.demandAccuracy || 87 },
     { name: "Supplier Performance", value: data?.supplierPerformance || 82 },
     { name: "Price Competitiveness", value: data?.priceCompetitiveness || 92 },

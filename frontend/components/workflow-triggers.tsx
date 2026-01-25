@@ -15,7 +15,8 @@ import {
     BarChart3,
     Wallet,
     LineChart,
-    Settings2
+    Settings2,
+    Users
 } from "lucide-react"
 
 interface WorkflowTrigger {
@@ -96,6 +97,14 @@ const WORKFLOW_TRIGGERS: WorkflowTrigger[] = [
         description: "Current cash, pending payments, and cash flow forecast",
         icon: <Wallet size={20} />,
         category: "financial",
+    },
+    {
+        id: "supplier-negotiation",
+        name: "Negotiate with Suppliers",
+        description: "3-round negotiation with AP2 payment mandate",
+        icon: <Users size={20} />,
+        category: "financial",
+        params: { max_rounds: 3 },
     },
 ]
 

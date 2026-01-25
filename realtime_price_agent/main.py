@@ -517,11 +517,125 @@ def save_history(entry: dict):
     except Exception as e:
         logger.error(f"Failed to save history: {e}")
 
-@app.get("/api/workflows/pending-approvals")
-def get_pending_approvals():
-    """Get pending human-in-the-loop approval requests."""
+
+# ========== AUDIT LOGGING ==========
+
+AUDIT_LOG = []  # In-memory for demo (use DB in production)
+
+def log_audit(action: str, session_id: str, details: dict):
+    """Log an audit entry for negotiation actions."""
+    import uuid
+    AUDIT_LOG.append({
+        "id": f"AUD-{uuid.uuid4().hex[:8]}",
+        "action": action,
+        "session_id": session_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "details": details
+    })
+
+
+@app.get("/api/audit/negotiation/{session_id}")
+async def get_negotiation_audit(session_id: str):
+    """Get audit trail for a negotiation session."""
+    return [a for a in AUDIT_LOG if a["session_id"] == session_id]
+
+
+# ========== NEGOTIATION APPROVAL QUEUE ==========
+
+NEGOTIATION_APPROVAL_QUEUE = {}
+
+
+@app.get("/api/workflows/negotiate/pending-approvals")
+async def get_negotiation_approvals():
+    """Get pending negotiation approvals."""
     approvals_list = []
     
+    for session_id, data in NEGOTIATION_APPROVAL_QUEUE.items():
+        approvals_list.append({
+            "workflow_id": session_id,
+            "type": "negotiation_approval",
+            "message": f"Approve negotiation with {data.get('supplier_name', 'supplier')}",
+            "created_at": data.get("timestamp"),
+            "status": "pending",
+            "context": {
+                "session_id": session_id,
+                "supplier_id": data.get("supplier_id"),
+                "supplier_name": data.get("supplier_name"),
+                "total": data.get("total_value"),
+                "savings_percent": data.get("savings_percent"),
+                "rounds_completed": data.get("rounds_completed"),
+                "items": data.get("items", []),
+                "email_summary": data.get("email_summary", []),
+                "ap2_mandate_preview": data.get("ap2_mandate_preview")
+            }
+        })
+    
+    approvals_list.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    
+    return {
+        "pending": approvals_list,
+        "count": len(approvals_list)
+    }
+
+
+@app.post("/api/workflows/negotiate/approve/{session_id}")
+async def approve_negotiation(session_id: str, db: Session = Depends(get_db)):
+    """Approve negotiation → create PO + AP2 mandate → log audit."""
+    import uuid
+    
+    if session_id not in NEGOTIATION_APPROVAL_QUEUE:
+        raise HTTPException(status_code=404, detail="Negotiation session not found")
+    
+    data = NEGOTIATION_APPROVAL_QUEUE[session_id]
+    
+    # Create Purchase Order
+    po_number = f"PO-{uuid.uuid4().hex[:8].upper()}"
+    
+    # Create AP2 mandate
+    mandate_id = f"ap2-{uuid.uuid4().hex[:12]}"
+    
+    # Log audit
+    log_audit("negotiation_approved", session_id, {
+        "po_number": po_number,
+        "mandate_id": mandate_id,
+        "supplier_id": data.get("supplier_id"),
+        "total_value": data.get("total_value"),
+        "approved_by": "user"
+    })
+    
+    # Save to history
+    save_history({
+        "type": "negotiation_workflow",
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "completed",
+        "triggered_by": "user_approval",
+        "result": {
+            "session_id": session_id,
+            "po_number": po_number,
+            "mandate_id": mandate_id,
+            "supplier_id": data.get("supplier_id"),
+            "total_value": data.get("total_value"),
+            "savings_percent": data.get("savings_percent")
+        }
+    })
+    
+    # Remove from queue
+    del NEGOTIATION_APPROVAL_QUEUE[session_id]
+    
+    return {
+        "status": "approved",
+        "session_id": session_id,
+        "po_number": po_number,
+        "mandate_id": mandate_id,
+        "message": "Negotiation approved. PO and AP2 mandate created."
+    }
+
+@app.get("/api/workflows/pending-approvals")
+def get_pending_approvals():
+    """Get pending human-in-the-loop approval requests (includes negotiation approvals)."""
+    approvals_list = []
+    
+    # Order approvals from APPROVAL_QUEUE
     for workflow_id, data in APPROVAL_QUEUE.items():
         # Flatten all items from all supplier recommendations for display
         all_items = []
@@ -548,8 +662,29 @@ def get_pending_approvals():
             }
         })
     
+    # Negotiation approvals from NEGOTIATION_APPROVAL_QUEUE
+    for session_id, data in NEGOTIATION_APPROVAL_QUEUE.items():
+        approvals_list.append({
+            "workflow_id": session_id,
+            "type": "negotiation_approval",
+            "message": f"Approve negotiation with {data.get('supplier_name', 'supplier')}",
+            "created_at": data.get("timestamp"),
+            "status": "pending",
+            "context": {
+                "session_id": session_id,
+                "supplier_id": data.get("supplier_id"),
+                "supplier_name": data.get("supplier_name"),
+                "total": data.get("total_value"),
+                "savings_percent": data.get("savings_percent"),
+                "rounds_completed": data.get("rounds_completed"),
+                "items": data.get("items", []),
+                "email_summary": data.get("email_summary", []),
+                "ap2_mandate_preview": data.get("ap2_mandate_preview")
+            }
+        })
+    
     # Sort by timestamp desc
-    approvals_list.sort(key=lambda x: x["created_at"], reverse=True)
+    approvals_list.sort(key=lambda x: x["created_at"] or "", reverse=True)
     
     return {
         "pending": approvals_list,
@@ -568,21 +703,174 @@ def get_workflow_history():
         pass
     return []
 
+# ========== AP2 PAYMENT INTEGRATION ==========
+
+FINANCE_MCP_URL = "http://localhost:3003/mcp"
+
+def call_ap2_payment(supplier_id: str, amount: float, po_number: str, order_details: dict) -> dict:
+    """Execute AP2 payment flow via Finance MCP server.
+    
+    Creates a payment mandate with user consent (already approved) and executes payment.
+    """
+    import requests
+    
+    try:
+        # Step 1: Create payment mandate
+        mandate_response = requests.post(FINANCE_MCP_URL, json={
+            "method": "tools/call",
+            "params": {
+                "name": "create_payment_mandate",
+                "arguments": {
+                    "supplier_id": supplier_id,
+                    "amount": amount,
+                    "currency": "USD",
+                    "order_details": order_details,
+                    "user_consent": True  # Already approved by user via HITL
+                }
+            }
+        }, timeout=15)
+        mandate_response.raise_for_status()
+        
+        mandate_result = mandate_response.json()
+        if mandate_result.get("isError"):
+            return {"error": mandate_result["content"][0]["text"], "step": "create_mandate"}
+            
+        mandate = json.loads(mandate_result["content"][0]["text"])
+        mandate_id = mandate.get("mandate_id")
+        
+        if not mandate_id:
+            return {"error": "No mandate_id returned", "step": "create_mandate"}
+        
+        logger.info(f"AP2 mandate created: {mandate_id} for ${amount}")
+        
+        # Step 2: Execute payment with mandate
+        execute_response = requests.post(FINANCE_MCP_URL, json={
+            "method": "tools/call",
+            "params": {
+                "name": "execute_payment_with_mandate",
+                "arguments": {
+                    "mandate_id": mandate_id,
+                    "po_number": po_number
+                }
+            }
+        }, timeout=15)
+        execute_response.raise_for_status()
+        
+        execute_result = execute_response.json()
+        if execute_result.get("isError"):
+            return {"error": execute_result["content"][0]["text"], "step": "execute_payment"}
+            
+        payment = json.loads(execute_result["content"][0]["text"])
+        logger.info(f"AP2 payment executed: {payment.get('status')} for PO {po_number}")
+        
+        return {
+            "mandate_id": mandate_id,
+            "po_number": po_number,
+            "amount": amount,
+            "supplier_id": supplier_id,
+            "status": payment.get("status", "executed"),
+            "executed_at": payment.get("executed_at"),
+            "message": payment.get("message", "Payment completed via AP2")
+        }
+        
+    except requests.exceptions.ConnectionError:
+        logger.warning(f"Finance MCP server not available at {FINANCE_MCP_URL}")
+        return {"error": "Finance MCP server not available", "step": "connection"}
+    except Exception as e:
+        logger.error(f"AP2 payment error: {e}")
+        return {"error": str(e), "step": "unknown"}
+
+
+# In-memory AP2 mandates storage (for demo - use DB in production)
+AP2_MANDATES = []
+
+
+@app.get("/api/ap2/mandates")
+async def list_ap2_mandates():
+    """List all AP2 mandates with schema."""
+    return {
+        "mandates": AP2_MANDATES,
+        "count": len(AP2_MANDATES),
+        "schema": {
+            "mandate_id": "string (ap2-xxxx)",
+            "amount": "number",
+            "currency": "string (USD)",
+            "supplier_id": "string",
+            "status": "string (pending|executed|expired)",
+            "created_at": "ISO datetime",
+            "expires_at": "ISO datetime (24h from creation)",
+            "signed_mandate": "JWT RS256 signed token"
+        }
+    }
+
+
 @app.post("/api/workflows/approvals/{workflow_id}/approve")
 def approve_workflow(workflow_id: str, db: Session = Depends(get_db)):
-    """Approve a pending workflow action (create orders)."""
+    """Approve a pending workflow action (handles both order and negotiation approvals)."""
+    import uuid
+    
     try:
+        # Check if it's a negotiation approval
+        if workflow_id in NEGOTIATION_APPROVAL_QUEUE:
+            data = NEGOTIATION_APPROVAL_QUEUE[workflow_id]
+            
+            # Create Purchase Order
+            po_number = f"PO-{uuid.uuid4().hex[:8].upper()}"
+            
+            # Create AP2 mandate
+            mandate_id = f"ap2-{uuid.uuid4().hex[:12]}"
+            
+            # Log audit
+            log_audit("negotiation_approved", workflow_id, {
+                "po_number": po_number,
+                "mandate_id": mandate_id,
+                "supplier_id": data.get("supplier_id"),
+                "total_value": data.get("total_value"),
+                "approved_by": "user"
+            })
+            
+            # Save to history
+            save_history({
+                "type": "negotiation_workflow",
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "completed",
+                "triggered_by": "user_approval",
+                "result": {
+                    "session_id": workflow_id,
+                    "po_number": po_number,
+                    "mandate_id": mandate_id,
+                    "supplier_id": data.get("supplier_id"),
+                    "total_value": data.get("total_value"),
+                    "savings_percent": data.get("savings_percent")
+                }
+            })
+            
+            # Remove from queue
+            del NEGOTIATION_APPROVAL_QUEUE[workflow_id]
+            
+            return {
+                "status": "approved",
+                "session_id": workflow_id,
+                "po_number": po_number,
+                "mandate_id": mandate_id,
+                "orders_created": 1,
+                "order_ids": [po_number],
+                "message": "Negotiation approved. PO and AP2 mandate created."
+            }
+        
+        # Regular order approval
         if workflow_id not in APPROVAL_QUEUE:
             raise HTTPException(status_code=404, detail="Approval request not found")
         
         data = APPROVAL_QUEUE[workflow_id]
         recommendations = data["recommendations"]
         
-        # Create orders
+        # Create orders and execute payments
         from services.workflow_service import WorkflowService
         workflow_service = WorkflowService(db)
         
         created_orders = []
+        payment_results = []
         errors = []
         
         for rec in recommendations:
@@ -590,6 +878,19 @@ def approve_workflow(workflow_id: str, db: Session = Depends(get_db)):
                 order = workflow_service._create_purchase_order(rec)
                 if order:
                     created_orders.append(order.po_number)
+                    
+                    # Execute AP2 payment for this order
+                    payment_result = call_ap2_payment(
+                        supplier_id=rec["supplier_id"],
+                        amount=rec.get("total_value", 0),
+                        po_number=order.po_number,
+                        order_details={"items": rec.get("items", [])}
+                    )
+                    payment_results.append(payment_result)
+                    
+                    if payment_result.get("error"):
+                        logger.warning(f"AP2 payment issue for {order.po_number}: {payment_result.get('error')}")
+                    
             except Exception as e:
                 logger.error(f"Failed to create order for {rec['supplier_id']}: {e}")
                 errors.append(str(e))
@@ -605,7 +906,8 @@ def approve_workflow(workflow_id: str, db: Session = Depends(get_db)):
                     "orders_created": len(created_orders),
                     "total_value": data["total_value"],
                     "products_analyzed": "N/A (Pending Approval)", 
-                    "workflow_id": workflow_id
+                    "workflow_id": workflow_id,
+                    "payments_processed": len([p for p in payment_results if not p.get("error")])
                 }
             })
         except Exception as e:
@@ -618,6 +920,7 @@ def approve_workflow(workflow_id: str, db: Session = Depends(get_db)):
             "status": "approved",
             "orders_created": len(created_orders),
             "order_ids": created_orders,
+            "payment_results": payment_results,
             "errors": errors
         }
     except HTTPException:
@@ -808,7 +1111,167 @@ async def workflow_optimize_inventory_stream(
     )
 
 
+@app.get("/api/workflows/negotiate/stream")
+async def negotiate_workflow_stream(
+    db: Session = Depends(get_db),
+    max_rounds: int = Query(3, description="Maximum negotiation rounds per supplier"),
+) -> StreamingResponse:
+    """3 back-and-forth negotiation rounds with audit logging.
+    
+    Streams SSE events for real-time UI updates showing:
+    - MCP tool calls
+    - Email sent/received simulations  
+    - Quote requests and counter-offers
+    - Best offer selection and approval request
+    """
+    import asyncio
+    import time
+    import uuid
+    
+    async def negotiate_generator():
+        start_time = time.time()
+        session_id = f"NEG-{uuid.uuid4().hex[:8]}"
+        audit_id = f"AUD-{uuid.uuid4().hex[:8]}"
+        
+        try:
+            # Start event
+            yield f"data: {json.dumps({'event': 'start', 'audit_id': audit_id, 'timestamp': int(time.time() * 1000)})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            log_audit("negotiation_started", session_id, {"audit_id": audit_id, "max_rounds": max_rounds})
+            
+            # Get low stock products via MCP
+            yield f"data: {json.dumps({'event': 'mcp_call', 'tool': 'get_low_stock_products', 'audit_logged': True, 'timestamp': int(time.time() * 1000)})}\n\n"
+            await asyncio.sleep(0.2)
+            
+            # Load low stock products from DB
+            from services.inventory_service import InventoryService
+            inventory_service = InventoryService(db)
+            products = inventory_service.get_low_stock_products()[:5]  # Limit for demo
+            
+            if not products:
+                yield f"data: {json.dumps({'event': 'error', 'message': 'No low stock products found', 'timestamp': int(time.time() * 1000)})}\n\n"
+                return
+            
+            yield f"data: {json.dumps({'event': 'mcp_result', 'tool': 'get_low_stock_products', 'count': len(products), 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            # Create negotiation session
+            yield f"data: {json.dumps({'event': 'negotiation_created', 'session_id': session_id, 'products': len(products), 'timestamp': int(time.time() * 1000)})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            log_audit("session_created", session_id, {"products": [p.asin for p in products]})
+            
+            # Simulate supplier negotiation
+            supplier_id = "TECH-001"
+            supplier_name = "TechSupply Electronics"
+            initial_price = 50.00
+            current_price = initial_price
+            email_summary = []
+            
+            items = [{
+                "asin": p.asin,
+                "title": p.title,
+                "quantity": p.reorder_quantity or 100,
+                "unit_price": float(p.unit_cost or 25.00)
+            } for p in products]
+            
+            # Run negotiation rounds
+            for round_num in range(1, max_rounds + 1):
+                round_type = "quote_request" if round_num == 1 else ("counter_offer" if round_num < max_rounds else "final")
+                
+                yield f"data: {json.dumps({'event': 'round', 'number': round_num, 'type': round_type, 'timestamp': int(time.time() * 1000)})}\n\n"
+                await asyncio.sleep(0.3)
+                
+                # Email sent
+                email_subject = f"Quote Request for {len(items)} products" if round_num == 1 else f"Counter offer - Round {round_num}"
+                yield f"data: {json.dumps({'event': 'email_sent', 'to': f'{supplier_id.lower()}@example.com', 'subject': email_subject, 'timestamp': int(time.time() * 1000)})}\n\n"
+                email_summary.append({"direction": "sent", "round": round_num, "subject": email_subject})
+                await asyncio.sleep(0.2)
+                
+                # MCP call to request/submit
+                mcp_tool = "request_supplier_quote" if round_num == 1 else "submit_counter_offer"
+                yield f"data: {json.dumps({'event': 'mcp_call', 'tool': mcp_tool, 'timestamp': int(time.time() * 1000)})}\n\n"
+                await asyncio.sleep(0.3)
+                
+                # Simulate supplier response (decreasing price each round)
+                discount = round_num * 0.05  # 5% per round
+                supplier_offer = round(initial_price * (1 - discount), 2)
+                current_price = supplier_offer
+                
+                yield f"data: {json.dumps({'event': 'email_received', 'from': f'{supplier_id.lower()}@example.com', 'offer': supplier_offer, 'final': round_num == max_rounds, 'timestamp': int(time.time() * 1000)})}\n\n"
+                email_summary.append({"direction": "received", "round": round_num, "offer": supplier_offer})
+                await asyncio.sleep(0.2)
+                
+                log_audit(f"round_{round_num}_complete", session_id, {
+                    "supplier_id": supplier_id,
+                    "offer": supplier_offer,
+                    "type": round_type
+                })
+            
+            # Calculate savings
+            savings_percent = round(((initial_price - current_price) / initial_price) * 100, 1)
+            total_quantity = sum(item["quantity"] for item in items)
+            total_value = round(current_price * total_quantity, 2)
+            
+            # Compare offers
+            yield f"data: {json.dumps({'event': 'offers_compared', 'best_supplier': supplier_id, 'best_price': current_price, 'savings': f'{savings_percent}%', 'timestamp': int(time.time() * 1000)})}\n\n"
+            await asyncio.sleep(0.2)
+            
+            # Create AP2 mandate preview
+            ap2_preview = {
+                "mandate_id": f"ap2-{uuid.uuid4().hex[:12]}",
+                "amount": total_value,
+                "currency": "USD",
+                "supplier_id": supplier_id,
+                "status": "pending",
+                "expires_in": "24 hours"
+            }
+            
+            yield f"data: {json.dumps({'event': 'ap2_mandate_preview', 'schema': ap2_preview, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            # Add to negotiation approval queue
+            NEGOTIATION_APPROVAL_QUEUE[session_id] = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "supplier_id": supplier_id,
+                "supplier_name": supplier_name,
+                "total_value": total_value,
+                "savings_percent": savings_percent,
+                "rounds_completed": max_rounds,
+                "items": items,
+                "email_summary": email_summary,
+                "ap2_mandate_preview": ap2_preview
+            }
+            
+            yield f"data: {json.dumps({'event': 'pending_approval', 'session_id': session_id, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            log_audit("awaiting_approval", session_id, {
+                "total_value": total_value,
+                "savings_percent": savings_percent
+            })
+            
+            # Complete
+            elapsed = round(time.time() - start_time, 2)
+            yield f"data: {json.dumps({'event': 'complete', 'awaiting': 'human_approval', 'session_id': session_id, 'elapsed_seconds': elapsed, 'timestamp': int(time.time() * 1000)})}\n\n"
+            
+            logger.info(f"Negotiation workflow complete in {elapsed}s - session {session_id}")
+            
+        except Exception as e:
+            logger.error(f"Negotiation workflow error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'event': 'error', 'message': str(e), 'timestamp': int(time.time() * 1000)})}\n\n"
+    
+    return StreamingResponse(
+        negotiate_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.get("/api/workflows/analyze-product/{asin}")
+
 def workflow_analyze_product(
     asin: str,
     forecast_days: int = Query(7, description="Days ahead to forecast"),
@@ -961,3 +1424,51 @@ async def chat(request: ChatRequest) -> StreamingResponse:
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/api/chat/sync")
+async def chat_sync(request: ChatRequest):
+    """Non-streaming chat endpoint for Swagger UI testing.
+    
+    Returns all workflow events as a JSON array instead of SSE stream.
+    Use this endpoint for testing in Swagger UI or when SSE is not supported.
+    """
+    try:
+        logger.info(f"Processing sync chat request: {request.message[:100]}...")
+        
+        events = []
+        events.append({
+            "type": "metadata",
+            "event": "WorkflowStarted",
+            "agent": "Orchestrator",
+            "message": "Starting workflow"
+        })
+        
+        # Collect all events
+        async for event in magentic_orchestrator.process_request_stream(
+            user_message=request.message,
+            conversation_history=request.context,
+        ):
+            events.append(event)
+        
+        events.append({
+            "type": "metadata",
+            "event": "Complete",
+            "message": "Request processed successfully"
+        })
+        
+        logger.info(f"Sync chat completed with {len(events)} events")
+        
+        return {
+            "status": "success",
+            "events_count": len(events),
+            "events": events
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in sync chat: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "events": []
+        }

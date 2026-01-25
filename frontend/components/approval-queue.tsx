@@ -15,7 +15,9 @@ import {
     AlertTriangle,
     ChevronDown,
     ChevronUp,
-    RefreshCw
+    RefreshCw,
+    FileText,
+    Users
 } from "lucide-react"
 
 export interface PendingApproval {
@@ -26,6 +28,7 @@ export interface PendingApproval {
     context: {
         order_id?: string
         supplier?: string
+        supplier_name?: string
         items?: Array<{
             asin: string
             title?: string
@@ -34,7 +37,26 @@ export interface PendingApproval {
         }>
         total?: number
         reason?: string
+        // Negotiation-specific
+        session_id?: string
+        savings_percent?: number
+        rounds_completed?: number
+        email_summary?: Array<{
+            direction: 'sent' | 'received'
+            round: number
+            subject?: string
+            offer?: number
+        }>
+        ap2_mandate_preview?: {
+            mandate_id: string
+            amount: number
+            currency: string
+            supplier_id: string
+            status: string
+            expires_in: string
+        }
     }
+    type?: string
     created_at: string
 }
 
@@ -283,43 +305,113 @@ export function ApprovalQueue({
                                 </div>
 
                                 {/* Expanded Details */}
-                                {isExpanded && approval.context.items && (
+                                {isExpanded && (
                                     <div
                                         className="border-t p-3"
                                         style={{ backgroundColor: "#f8f9fa", borderColor: "#e0e0e0" }}
                                     >
-                                        <p className="text-xs font-semibold mb-2" style={{ color: "#7f8c8d" }}>
-                                            ORDER ITEMS
-                                        </p>
-                                        <div className="space-y-2">
-                                            {approval.context.items.map((item, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex items-center justify-between p-2 bg-white rounded border"
-                                                    style={{ borderColor: "#e0e0e0" }}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <Package size={14} style={{ color: "#95a5a6" }} />
-                                                        <div>
-                                                            <p className="text-sm font-medium" style={{ color: "#2c3e50" }}>
-                                                                {item.title || item.asin}
-                                                            </p>
-                                                            <p className="text-xs text-gray-500">
-                                                                ASIN: {item.asin}
-                                                            </p>
+                                        {/* Negotiation-specific info */}
+                                        {approval.type === "negotiation_approval" && (
+                                            <>
+                                                {/* Savings badge */}
+                                                {approval.context.savings_percent && (
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Badge style={{ backgroundColor: "#27ae60", color: "white" }}>
+                                                            {approval.context.savings_percent}% savings
+                                                        </Badge>
+                                                        <span className="text-xs text-gray-500">
+                                                            after {approval.context.rounds_completed} rounds
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Email Summary */}
+                                                {approval.context.email_summary && (
+                                                    <div className="mb-3">
+                                                        <p className="text-xs font-semibold mb-2" style={{ color: "#7f8c8d" }}>
+                                                            EMAIL CONVERSATION
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                            {approval.context.email_summary.map((email, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="flex items-center gap-2 text-xs"
+                                                                >
+                                                                    <FileText size={12} style={{ color: email.direction === 'sent' ? '#3498db' : '#27ae60' }} />
+                                                                    <span style={{ color: email.direction === 'sent' ? '#3498db' : '#27ae60' }}>
+                                                                        {email.direction === 'sent' ? '→ Sent:' : '← Received:'}
+                                                                    </span>
+                                                                    <span className="text-gray-600">
+                                                                        {email.subject || (email.offer ? `Offer: ${formatCurrency(email.offer)}` : `Round ${email.round}`)}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-medium" style={{ color: "#2c3e50" }}>
-                                                            {item.quantity} × {formatCurrency(item.unit_price)}
+                                                )}
+
+                                                {/* AP2 Mandate Preview */}
+                                                {approval.context.ap2_mandate_preview && (
+                                                    <div className="mb-3">
+                                                        <p className="text-xs font-semibold mb-2" style={{ color: "#7f8c8d" }}>
+                                                            AP2 MANDATE PREVIEW
                                                         </p>
-                                                        <p className="text-xs text-gray-500">
-                                                            {formatCurrency(item.quantity * item.unit_price)}
-                                                        </p>
+                                                        <div className="p-2 bg-white rounded border text-xs" style={{ borderColor: "#e0e0e0" }}>
+                                                            <div className="grid grid-cols-2 gap-1">
+                                                                <span className="text-gray-500">Mandate ID:</span>
+                                                                <span className="font-mono">{approval.context.ap2_mandate_preview.mandate_id}</span>
+                                                                <span className="text-gray-500">Amount:</span>
+                                                                <span className="font-medium">{formatCurrency(approval.context.ap2_mandate_preview.amount)}</span>
+                                                                <span className="text-gray-500">Status:</span>
+                                                                <span>{approval.context.ap2_mandate_preview.status}</span>
+                                                                <span className="text-gray-500">Expires:</span>
+                                                                <span>{approval.context.ap2_mandate_preview.expires_in}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Order Items (for both regular and negotiation) */}
+                                        {approval.context.items && approval.context.items.length > 0 && (
+                                            <>
+                                                <p className="text-xs font-semibold mb-2" style={{ color: "#7f8c8d" }}>
+                                                    ORDER ITEMS ({approval.context.items.length})
+                                                </p>
+                                                <ScrollArea className="h-[150px] overflow-auto">
+                                                    <div className="space-y-2 pr-2">
+                                                        {approval.context.items.map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="flex items-center justify-between p-2 bg-white rounded border"
+                                                                style={{ borderColor: "#e0e0e0" }}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <Package size={14} style={{ color: "#95a5a6" }} />
+                                                                    <div>
+                                                                        <p className="text-sm font-medium" style={{ color: "#2c3e50" }}>
+                                                                            {item.title || item.asin}
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-500">
+                                                                            ASIN: {item.asin}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-sm font-medium" style={{ color: "#2c3e50" }}>
+                                                                        {item.quantity} × {formatCurrency(item.unit_price)}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-500">
+                                                                        {formatCurrency(item.quantity * item.unit_price)}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </ScrollArea>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>
