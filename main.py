@@ -425,7 +425,6 @@ def get_live_amazon_price(asin: str):
     import requests
 
     try:
-    try:
         # MOCK IMPLEMENTATION
         import random
         from datetime import datetime
