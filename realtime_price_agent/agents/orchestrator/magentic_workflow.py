@@ -218,29 +218,27 @@ class SupplyChainOrchestrator:
         logger.info(f"📥 USER REQUEST: {user_message[:100]}...")
         logger.info(f"{'='*60}\n")
 
-        # Create MCP tool instances
-        supplier_tool = self._create_mcp_tool("supplier-data")
-        inventory_tool = self._create_mcp_tool("inventory-mgmt")
-        finance_tool = self._create_mcp_tool("finance-data")
-        analytics_tool = self._create_mcp_tool("analytics-forecast")
-        integrations_tool = self._create_mcp_tool("integrations")
+        # NOTE: MCPStreamableHTTPTool requires SSE transport, but our MCP servers
+        # use simple REST POST to /mcp. Disabling tools until servers are upgraded.
+        # TODO: Upgrade MCP servers to use MCP Streamable HTTP with SSE
+        # For now, agents will work without MCP tools (using LLM knowledge only)
+        
+        # Create MCP tool instances (DISABLED - protocol mismatch)
+        # supplier_tool = self._create_mcp_tool("supplier-data")
+        # inventory_tool = self._create_mcp_tool("inventory-mgmt")
+        # finance_tool = self._create_mcp_tool("finance-data")
+        # analytics_tool = self._create_mcp_tool("analytics-forecast")
+        # integrations_tool = self._create_mcp_tool("integrations")
 
-        # Log tool availability
-        tools_status = {
-            "supplier": "✓" if supplier_tool else "✗",
-            "inventory": "✓" if inventory_tool else "✗",
-            "finance": "✓" if finance_tool else "✗",
-            "analytics": "✓" if analytics_tool else "✗",
-            "integrations": "✓" if integrations_tool else "✗",
-        }
-        logger.info(f"MCP Tools: {tools_status}")
+        logger.info("⚠️ MCP tools disabled - servers use REST, framework requires SSE")
 
         try:
-            # Combine tools for agents
-            price_tools = [t for t in [supplier_tool, inventory_tool, finance_tool, integrations_tool] if t]
-            demand_tools = [t for t in [inventory_tool, analytics_tool, integrations_tool] if t]
-            ordering_tools = [t for t in [supplier_tool, inventory_tool, finance_tool, integrations_tool] if t]
-            negotiation_tools = [t for t in [supplier_tool, inventory_tool, finance_tool] if t]
+            # Empty tool lists until MCP servers upgraded to SSE
+            price_tools = []
+            demand_tools = []
+            ordering_tools = []
+            negotiation_tools = []
+
 
             logger.info("\n🏗️ Building Magentic workflow with agents...")
             logger.info("  → OrchestratorAgent (routing)")
@@ -250,40 +248,43 @@ class SupplyChainOrchestrator:
             logger.info(f"  → NegotiationAgent (tools: {len(negotiation_tools)})")
 
             # Build workflow with correct API for this version
+            # Create agent instances
+            price_agent = create_price_monitoring_agent(
+                chat_client=self.chat_client,
+                tools=price_tools if price_tools else None,
+            )
+            demand_agent = create_demand_forecasting_agent(
+                chat_client=self.chat_client,
+                tools=demand_tools if demand_tools else None,
+            )
+            ordering_agent = create_automated_ordering_agent(
+                chat_client=self.chat_client,
+                tools=ordering_tools if ordering_tools else None,
+            )
+            negotiation_agent = create_negotiation_agent(
+                chat_client=self.chat_client,
+                tools=negotiation_tools if negotiation_tools else None,
+            )
+            
+            # Build workflow - participants takes a list of agents
             workflow = (
                 MagenticBuilder()
-                .participants(
-                    OrchestratorAgent=ChatAgent(
-                        name="OrchestratorAgent",
-                        description="Routes queries to specialized supply chain agents",
-                        instructions=ORCHESTRATOR_INSTRUCTIONS,
-                        chat_client=self.chat_client,
-                    ),
-                    PriceMonitoringAgent=create_price_monitoring_agent(
-                        chat_client=self.chat_client,
-                        tools=price_tools if price_tools else None,
-                    ),
-                    DemandForecastingAgent=create_demand_forecasting_agent(
-                        chat_client=self.chat_client,
-                        tools=demand_tools if demand_tools else None,
-                    ),
-                    AutomatedOrderingAgent=create_automated_ordering_agent(
-                        chat_client=self.chat_client,
-                        tools=ordering_tools if ordering_tools else None,
-                    ),
-                    NegotiationAgent=create_negotiation_agent(
-                        chat_client=self.chat_client,
-                        tools=negotiation_tools if negotiation_tools else None,
-                    ),
-                )
+                .participants([
+                    price_agent,
+                    demand_agent,
+                    ordering_agent,
+                    negotiation_agent,
+                ])
                 .with_standard_manager(
-                    agent=self._manager_agent,  # Use agent, not chat_client
+                    agent=self._manager_agent,
                     max_round_count=8,
                     max_stall_count=2,
                     max_reset_count=1,
                 )
                 .build()
             )
+
+
 
             logger.info("✓ Workflow built successfully")
             logger.info("\n🔄 Starting workflow execution...\n")

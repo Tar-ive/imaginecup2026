@@ -1,123 +1,6 @@
 [
   {
     "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T15:02:32.570338",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 2,
-      "orders_recommended": 1,
-      "total_value": 783.52,
-      "elapsed_seconds": 5.31,
-      "requires_approval": true
-    },
-    "id": "6b257e03-0030-4ea0-8ffc-48e9a2a918a2"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T15:06:23.336637",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 50,
-      "orders_recommended": 3,
-      "total_value": 9483.89,
-      "elapsed_seconds": 4.35,
-      "requires_approval": true
-    },
-    "id": "b5763e3a-5381-4f74-9b9c-876447a0d400"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T15:08:27.093023",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 41,
-      "orders_recommended": 8,
-      "total_value": 70157.48000000001,
-      "elapsed_seconds": 3.87,
-      "requires_approval": true
-    },
-    "id": "5c1b5df5-0011-4413-bc3f-68171575ee13"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T15:10:43.502667",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 50,
-      "orders_recommended": 3,
-      "total_value": 9483.89,
-      "elapsed_seconds": 4.81,
-      "requires_approval": true
-    },
-    "id": "f264c989-6fee-4d5b-95a7-77248c7b0453"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T15:11:03.921030",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 2,
-      "orders_recommended": 1,
-      "total_value": 783.52,
-      "elapsed_seconds": 3.83,
-      "requires_approval": true
-    },
-    "id": "e242ca55-0ff0-47bf-8f89-dda4452c91b4"
-  },
-  {
-    "type": "optimization_workflow",
-    "timestamp": "2026-01-09T15:11:27.713643",
-    "status": "completed",
-    "triggered_by": "user_approval",
-    "result": {
-      "orders_created": 1,
-      "total_value": 783.52,
-      "products_analyzed": "N/A (Pending Approval)",
-      "workflow_id": "784751b8-6383-4b2c-8800-ee48dc7e80c2"
-    },
-    "id": "f1e27e57-8f37-4968-8ca7-43f24a78a29e"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T17:57:54.009991",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 20,
-      "orders_recommended": 0,
-      "total_value": 0,
-      "elapsed_seconds": 4.35,
-      "requires_approval": false
-    },
-    "id": "7533a282-9311-4e33-9741-0135a0c5b27c"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T17:58:29.533323",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 3,
-      "orders_recommended": 1,
-      "total_value": 1355.08,
-      "elapsed_seconds": 4.99,
-      "requires_approval": true
-    },
-    "id": "68d56795-d279-4c2c-9201-96619df6579f"
-  },
-  {
-    "type": "optimization_workflow_run",
-    "timestamp": "2026-01-09T17:59:06.811261",
-    "status": "completed",
-    "result": {
-      "products_analyzed": 20,
-      "orders_recommended": 7,
-      "total_value": 32524.969999999994,
-      "elapsed_seconds": 4.45,
-      "requires_approval": true
-    },
-    "id": "bf8f9883-bb5f-4119-91b4-33e09765aaed"
-  },
-  {
-    "type": "optimization_workflow_run",
     "timestamp": "2026-01-09T18:05:30.157217",
     "status": "completed",
     "result": {
@@ -453,5 +336,345 @@
       "workflow_id": "71e03b33-311c-4d84-9fd5-dd10544d235b"
     },
     "id": "955c7fca-38ac-4045-9317-62e1117806a1"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-22T23:44:06.362246",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 29.67,
+      "requires_approval": true
+    },
+    "id": "d1251c1f-0f3b-4d06-b0ba-aaef77de6fca"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-22T23:44:27.231091",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 5,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "cf1049fb-2549-4cc5-9b20-0ad9f2019d13",
+      "payments_processed": 0
+    },
+    "id": "0e1c5a05-c07c-4704-9daf-d79a3ee6d59a"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T00:40:49.601629",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-60fc9400",
+      "po_number": "PO-E3821608",
+      "mandate_id": "ap2-c46060d754f8",
+      "supplier_id": "TECH-001",
+      "total_value": 9450.0,
+      "savings_percent": 10.0
+    },
+    "id": "e95bba62-a379-49a8-9340-d3fc2446b2cf"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T00:48:46.002176",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-640ef71e",
+      "po_number": "PO-C349A825",
+      "mandate_id": "ap2-e8bf9924f696",
+      "supplier_id": "TECH-001",
+      "total_value": 9450.0,
+      "savings_percent": 10.0
+    },
+    "id": "b7835de1-5a1e-4ac3-91a2-5ed2883c9ddf"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T00:52:02.784551",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-38260db7",
+      "po_number": "PO-9E27A92D",
+      "mandate_id": "ap2-d2027fc72ec1",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "e29f9ea4-81a2-4dff-bcbd-6539b3033c27"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:05:03.209869",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-161d2cda",
+      "po_number": "PO-370288D5",
+      "mandate_id": "ap2-5e49b9ab768f",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "1041e4e3-2408-4d85-b24a-ddb214d7b2d7"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:05:13.500990",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-6aed8cb9",
+      "po_number": "PO-2B8BD2F5",
+      "mandate_id": "ap2-b06d611b46f9",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "97028edf-e3b3-469f-8fa4-5a6a4c76cd4e"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:05:15.977243",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-2b627f44",
+      "po_number": "PO-20B345D4",
+      "mandate_id": "ap2-06ae1937d84e",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "dd40beef-1258-41a1-95a2-f3d008831a6f"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:05:18.572377",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-30f95688",
+      "po_number": "PO-74369AE3",
+      "mandate_id": "ap2-576269771d16",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "ef5be52c-0b8b-43c3-97de-5a209c418b40"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:05:23.569099",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-b2cadf8c",
+      "po_number": "PO-7ABD5330",
+      "mandate_id": "ap2-213594e590fa",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "29876e27-1329-4f82-b92a-f0db5717e5f8"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-23T01:07:15.735826",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-c733dbd0",
+      "po_number": "PO-0EE01544",
+      "mandate_id": "ap2-59e76eb75e87",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "b1580736-507c-4294-baa0-15060a48c373"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-23T01:07:42.673501",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 3.69,
+      "requires_approval": true
+    },
+    "id": "aced7781-5e88-4d20-8247-7190bfaf56c0"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-23T01:08:08.237515",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 6,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "4147d0f5-1404-4dc0-8d5a-e7c121d80eb7",
+      "payments_processed": 0
+    },
+    "id": "f0527a68-991e-4e55-a1ea-47e7198e46d4"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-23T01:21:18.849200",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 2.07,
+      "requires_approval": true
+    },
+    "id": "2aa6ad9b-5e29-4d90-82fb-b6e7109b570e"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-23T01:21:48.114527",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 6,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "42692fe1-06c9-409e-ae21-c210c3991bee",
+      "payments_processed": 0
+    },
+    "id": "5036a321-6e7a-4d2a-8212-40f3f13a68aa"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-23T01:21:54.546934",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 2.11,
+      "requires_approval": true
+    },
+    "id": "2024da33-2ef6-4092-9968-29efd3edb638"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-23T01:22:16.158181",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 5,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "667f2569-c02c-456a-ad94-b89a763f5d26",
+      "payments_processed": 0
+    },
+    "id": "3c0d8fc6-9c02-4961-a9e7-e5f0f837ca09"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-25T04:02:33.950573",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-6db6f581",
+      "po_number": "PO-09D1C7F0",
+      "mandate_id": "ap2-bea1a940619d",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "b51d4f8a-1f89-4b52-9d1e-8f5e6d69a439"
+  },
+  {
+    "type": "negotiation_workflow",
+    "timestamp": "2026-01-25T04:02:49.732188",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "session_id": "NEG-d3da6139",
+      "po_number": "PO-22ED59EE",
+      "mandate_id": "ap2-f83e0f8a9dda",
+      "supplier_id": "TECH-001",
+      "total_value": 8925.0,
+      "savings_percent": 15.0
+    },
+    "id": "d8163855-9e83-4ed4-8b45-d8f45803d3c3"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-25T04:03:54.364952",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 6.25,
+      "requires_approval": true
+    },
+    "id": "c6f7f284-a8f7-493f-ae37-bf6d6b61175a"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-25T04:06:50.302517",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 1.51,
+      "requires_approval": true
+    },
+    "id": "3b99ca17-3e21-4699-bb2c-f1aa3515e092"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-25T04:07:08.748806",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 4,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "6fe6cd1b-0bb6-42af-bd5e-62d87f0abb0e",
+      "payments_processed": 0
+    },
+    "id": "918e962b-cedb-4bde-8ba7-83a551856911"
+  },
+  {
+    "type": "optimization_workflow_run",
+    "timestamp": "2026-01-25T14:49:44.667107",
+    "status": "completed",
+    "result": {
+      "products_analyzed": 20,
+      "orders_recommended": 7,
+      "total_value": 32524.97,
+      "elapsed_seconds": 21.59,
+      "requires_approval": true
+    },
+    "id": "ce5a4f6d-e718-4bd7-8a51-9d19d00d2424"
+  },
+  {
+    "type": "optimization_workflow",
+    "timestamp": "2026-01-25T14:50:03.938998",
+    "status": "completed",
+    "triggered_by": "user_approval",
+    "result": {
+      "orders_created": 4,
+      "total_value": 32524.97,
+      "products_analyzed": "N/A (Pending Approval)",
+      "workflow_id": "d80fdb23-35cd-43e1-9ec5-4bd298cf5728",
+      "payments_processed": 0
+    },
+    "id": "368cadf2-d0ac-4bf4-85d5-992215c23650"
   }
 ]

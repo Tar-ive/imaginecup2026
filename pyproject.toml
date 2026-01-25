@@ -10,33 +10,54 @@ dependencies = [
     # Server-Sent Events for streaming
     "sse-starlette>=2.2.1",
     # Configuration and validation
-    "pydantic>=2.10.6",
+    "pydantic>=2.11.0",
     "pydantic-settings>=2.7.0",
     "python-dotenv>=1.0.1",
-    # Observability with OpenTelemetry
+    # Azure authentication and AI
+    "azure-identity>=1.20.0",
+    "openai>=1.59.5",
+    # Microsoft Agent Framework
+    "agent-framework-core>=1.0.0b251001",
+    # Database
+    "sqlalchemy>=2.0.36",
+    "psycopg2-binary>=2.9.9",
+    # HTTP and utilities
+    "httpx>=0.27.0",
+    "requests>=2.31.0",
+    "pandas",
+    "thefuzz>=0.22.1",
+    "colorama>=0.4.6",
+]
+
+[project.optional-dependencies]
+# ML dependencies for demand forecasting
+ml = [
+    "xgboost>=2.0.3",
+    "scikit-learn>=1.5.2",
+]
+# AP2 Payment Mandate dependencies
+ap2 = [
+    "PyJWT>=2.8.0",
+    "cryptography>=41.0.7",
+]
+# OpenTelemetry for observability
+telemetry = [
     "opentelemetry-api>=1.30.0",
     "opentelemetry-sdk>=1.30.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.30.0",
     "opentelemetry-instrumentation-fastapi>=0.51b0",
-    # Azure authentication and AI
-    "azure-identity>=1.20.0",
-    "openai>=1.59.5",
-    # Microsoft Agent Framework - Core only (includes Azure OpenAI & OpenAI by default)
-    "agent-framework-core>=1.0.0b251001",
-    # Additional dependencies for supply chain app
-    "pandas",
-    "requests",
-    "psycopg2-binary",
-    "sqlalchemy>=2.0.30",
-    "thefuzz==0.22.1",
-    "httpx>=0.27.0",
-    # Demand forecasting ML dependencies
-    "xgboost>=2.0.0",
-    "scikit-learn>=1.4.0",
+]
+# Development dependencies
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
 ]
 
-[project.optional-dependencies]
-dev = [
+[tool.uv]
+dev-dependencies = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
@@ -54,7 +75,7 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["src/tests"]
+testpaths = ["realtime_price_agent/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -66,13 +87,9 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.setuptools]
-package-dir = {"" = "."}
+[tool.hatch.build.targets.wheel]
+packages = ["realtime_price_agent"]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["agents*", "database*", "services*"]
-namespaces = false

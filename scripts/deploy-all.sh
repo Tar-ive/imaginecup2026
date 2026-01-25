@@ -16,8 +16,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 ENV_FILE=".env"
-BACKEND_SCRIPT="./deploy-backend.sh"
-FRONTEND_SCRIPT="./deploy-frontend.sh"
+BACKEND_SCRIPT="./scripts/deploy-backend.sh"
+FRONTEND_SCRIPT="./scripts/deploy-frontend.sh"
 
 # Parse command line arguments
 SKIP_BACKEND=false
