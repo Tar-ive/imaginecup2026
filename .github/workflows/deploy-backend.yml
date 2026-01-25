@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "workflow" ]
     paths:
       - 'realtime_price_agent/**'
       - 'main.py'
@@ -61,14 +61,15 @@ jobs:
             echo "Supplier: https://$SUPPLIER_URL"
 
       - name: Build and Push to ACR
-        uses: azure/acr-build@v1
+        uses: azure/CLI@v1
         with:
-          service_principal: ${{ secrets.AZURE_CREDENTIALS }}
-          registry: ${{ env.ACR_NAME }}
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ github.sha }} latest
-          dockerfile: realtime_price_agent/Dockerfile
-          context: realtime_price_agent
+          inlineScript: |
+            az acr build \
+              --registry ${{ env.ACR_NAME }} \
+              --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --image ${{ env.IMAGE_NAME }}:latest \
+              --file realtime_price_agent/Dockerfile \
+              realtime_price_agent
 
       - name: Deploy to Container App
         uses: azure/container-apps-deploy-action@v1

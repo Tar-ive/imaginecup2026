@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "workflow" ]
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-frontend.yml'
@@ -41,17 +41,17 @@ jobs:
             echo "BACKEND_URL=https://$BACKEND_FQDN" >> $GITHUB_OUTPUT
 
       - name: Build and Push to ACR
-        uses: azure/acr-build@v1
+        uses: azure/CLI@v1
         with:
-          service_principal: ${{ secrets.AZURE_CREDENTIALS }}
-          registry: ${{ env.ACR_NAME }}
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ github.sha }} latest
-          dockerfile: frontend/Dockerfile
-          context: frontend
-          build_args: |
-            NEXT_PUBLIC_API_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
-            NODE_ENV=production
+          inlineScript: |
+            az acr build \
+              --registry ${{ env.ACR_NAME }} \
+              --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --image ${{ env.IMAGE_NAME }}:latest \
+              --build-arg NEXT_PUBLIC_API_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }} \
+              --build-arg NODE_ENV=production \
+              --file frontend/Dockerfile \
+              frontend
 
       - name: Deploy to Container App
         uses: azure/container-apps-deploy-action@v1
