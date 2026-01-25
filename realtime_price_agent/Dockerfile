@@ -13,10 +13,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy dependency files
 COPY pyproject.toml ./
-COPY requirements.txt ./
 
 # Install dependencies using pyproject.toml (includes agent-framework)
-RUN pip install --no-cache-dir -e .
+# Install uv
+RUN pip install uv
+
+# Install dependencies using uv
+RUN uv pip install --system --no-cache-dir -e .
 
 # Copy application code
 COPY . .

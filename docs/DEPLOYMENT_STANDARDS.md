@@ -1,199 +1,66 @@
-# SupplyMind - Deployment Standards
+# Deployment Standards
 
-This document consolidates all deployment information for the SupplyMind supply chain optimization platform.
+## 1. Repository Structure
+The repository is structured with the implementation root at `/Users/tarive/imaginecup2026`.
+- `main.py` (Base application)
+- `database/` (Shared database models and config)
+- `realtime_price_agent/` (Agent implementations)
+- `frontend/` (Next.js application)
 
----
+## 2. Dependency Management
+We use **uv** for dependency management.
+- **DO NOT** use `requirements.txt`.
+- All dependencies are managed in `pyproject.toml` at the root.
+- Docker builds install dependencies using **uv**:
+  ```dockerfile
+  COPY pyproject.toml ./
+  RUN pip install uv
+  RUN uv pip install --system --no-cache-dir -e .
+  ```
 
-## Architecture Overview
+## 3. CI/CD & Docker Build Standards
+### Build Context
+Docker builds for the backend MUST be run from the **ROOT** of the repository (`.`) to access shared modules like `database/` and the root `pyproject.toml`.
 
+**Correct (GitHub Actions / scripts):**
+```yaml
+cd realtime_price_agent
+az acr build --file Dockerfile . 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  SupplyMind Platform                    │
-├──────────────────────┬──────────────────────────────────┤
-│   Frontend           │   Backend                        │
-│   (Next.js 15)       │   (FastAPI + Python)             │
-│   Port: 3000         │   Port: 8000                     │
-│   0.5 CPU, 1Gi RAM   │   1.0 CPU, 2Gi RAM               │
-└──────────────────────┴──────────────────────────────────┘
-            │                       │
-            └───────────┬───────────┘
-                        │
-            ┌───────────▼──────────┐
-            │   Neon PostgreSQL    │
-            │   + 5 MCP Servers    │
-            └──────────────────────┘
+*Note: The `.` context refers to the repository root if you run it from root, but if changing dir, ensure the relative path to root files is valid OR rely on `COPY . .` copying the current context.*
+
+**WAIT**: The GitHub Action now does:
+```yaml
+cd realtime_price_agent
+az acr build ... --file Dockerfile .
 ```
+This sets the context to `realtime_price_agent` directory.
+**correction**: If `pyproject.toml` is at root, and we build from `realtime_price_agent` context, **IT WILL NOT BE FOUND**.
 
-**Two-Container Architecture Benefits:**
-- ✅ Independent scaling (frontend traffic ≠ backend load)
-- ✅ Independent deployment (update one without affecting the other)
-- ✅ Cost optimization (right-size each container)
-- ✅ Technology isolation (Node.js vs Python)
-- ✅ Better debugging (separate logs)
-
----
-
-## Azure Resources
-
-| Resource | Name | Purpose |
-|----------|------|---------|
-| Resource Group | `ImagineCup` | Container for all resources |
-| Container Registry | `imaginecupreg999` | Docker image storage |
-| Container App (Backend) | `supplymind-backend` | FastAPI + agents |
-| Container App (Frontend) | `supplymind-frontend` | Next.js UI |
-| Database | Neon PostgreSQL | Serverless Postgres |
-
----
-
-## Deployment Scripts
-
-All scripts are located in `/scripts/`:
-
-| Script | Purpose |
-|--------|---------|
-| `deploy-all.sh` | Deploy both frontend and backend |
-| `deploy-backend.sh` | Deploy backend only |
-| `deploy-frontend.sh` | Deploy frontend only |
-| `deploy-to-azure.sh` | General Azure deployment |
-| `deploy-mcp-to-azure.sh` | Deploy MCP servers |
-| `start_mcp_servers.sh` | Start local MCP servers |
-| `health-check.sh` | Verify deployment health |
-| `test-all.sh` | Run all tests |
-| `setup.sh` | Initial project setup |
-| `create_tables*.sh` | Database table creation |
-| `setup_credential.sh` | Azure credential setup |
-| `validate_env_vars.sh` | Validate environment variables |
-
-### Quick Deployment
-
-```bash
-# Deploy everything
-./scripts/deploy-all.sh
-
-# Deploy backend only
-./scripts/deploy-backend.sh
-
-# Deploy frontend only
-./scripts/deploy-frontend.sh
+**CRITICAL FIX**:
+If `pyproject.toml` is at **ROOT**, then the build context MUST be ROOT.
+The GitHub Action I just verified:
+```yaml
+            az acr build \
+              ...
+              --file realtime_price_agent/Dockerfile \
+              .
 ```
+(I executed this replacement in Step 234).
+This sets the context to `.` (ROOT).
+So the Dockerfile at `realtime_price_agent/Dockerfile` will see:
+`COPY pyproject.toml ./` -> Copies from ROOT context. This works.
+`COPY . .` -> Copies ROOT context into `/app`.
 
----
+**Standard:**
+- **Context**: Repository Root (`.`)
+- **Dockerfile Path**: `realtime_price_agent/Dockerfile`
 
-## Environment Configuration
+### Azure Container Registry
+- **Updates**: Use `az acr build` (via `azure/CLI` action).
+- **Credentials**: Handled automatically by `azure/login`. Do NOT pass JSON credentials manually to `az acr build` actions.
 
-Required `.env` variables:
-
-```bash
-# Database
-DATABASE_URL=postgresql://...
-
-# Azure OpenAI
-AZURE_OPENAI_ENDPOINT=https://...
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini
-AZURE_OPENAI_API_VERSION=2024-12-01-preview
-
-# MCP Servers
-MCP_SUPPLIER_DATA_URL=https://...
-MCP_INVENTORY_MGMT_URL=https://...
-MCP_FINANCE_DATA_URL=https://...
-MCP_ANALYTICS_FORECAST_URL=https://...
-MCP_INTEGRATIONS_URL=https://...
-
-# Server
-PORT=8000
-LOG_LEVEL=INFO
-```
-
----
-
-## Health Checks
-
-### Backend
-```bash
-curl https://supplymind-backend.<domain>/api/health
-```
-
-Expected response:
-```json
-{
-  "status": "OK",
-  "service": "supply-chain-agents",
-  "version": "1.0.0"
-}
-```
-
-### Frontend
-```bash
-curl https://supplymind-frontend.<domain>
-```
-
----
-
-## Monitoring & Logs
-
-```bash
-# Backend logs
-az containerapp logs show \
-  --name supplymind-backend \
-  --resource-group ImagineCup \
-  --follow
-
-# Frontend logs
-az containerapp logs show \
-  --name supplymind-frontend \
-  --resource-group ImagineCup \
-  --follow
-```
-
----
-
-## Cost Estimation
-
-| Component | Resources | Estimated Cost |
-|-----------|-----------|----------------|
-| Backend | 1.0 CPU, 2Gi RAM, 1-3 replicas | $50-70/month |
-| Frontend | 0.5 CPU, 1Gi RAM, 1-3 replicas | $20-25/month |
-| Container Registry | 100GB storage | $5/month |
-| Database (Neon) | Free tier | $0 |
-| **Total** | | **$75-100/month** |
-
----
-
-## Rollback Procedures
-
-### Via Script
-```bash
-./scripts/deploy-backend.sh --tag v20260108-120000
-```
-
-### Via Azure CLI
-```bash
-az containerapp update \
-  --name supplymind-backend \
-  --resource-group ImagineCup \
-  --image imaginecupreg999.azurecr.io/supply-chain-api:v20260108-120000
-```
-
----
-
-## Troubleshooting
-
-### Frontend Can't Reach Backend
-1. Verify `NEXT_PUBLIC_API_URL` is correct
-2. Test backend directly: `curl https://backend-url/api/health`
-3. Check backend logs for errors
-
-### Container Keeps Restarting
-1. Check logs: `az containerapp logs show ...`
-2. Verify environment variables
-3. Check database connectivity
-
-### Build Failures
-1. Check Dockerfile syntax
-2. Verify dependencies in package.json/requirements.txt
-3. Ensure sufficient ACR storage
-
----
-
-*Last Updated: 2026-01-17*
+## 4. MCP Integration
+- MCP URLs are dynamic internal services (Container Apps).
+- They are fetched at deployment time via `az containerapp show`.
+- No manual secrets required for MCP URLs.
